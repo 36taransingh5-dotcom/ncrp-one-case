@@ -127,6 +127,12 @@ export function CitizenCaseClient({
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
+              <a
+                href={`/api/cases/${caseId}/summary`}
+                className="btn secondary"
+              >
+                Download summary
+              </a>
               <button
                 className="btn secondary"
                 onClick={() =>
@@ -326,6 +332,14 @@ export function CitizenCaseClient({
                 <div className="label">
                   SHA-256 · {String(item.sha256).slice(0, 16)}…
                 </div>
+                <a
+                  className="rowlink"
+                  href={`/api/evidence/${String(item.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open stored evidence
+                </a>
               </div>
             ))}
           </div>
@@ -337,6 +351,18 @@ export function CitizenCaseClient({
             <p style={{ fontSize: 13, color: "var(--muted)" }}>
               The team currently responsible for the next case action.
             </p>
+          </div>
+          <div className="card">
+            <div className="label">Institutional response SLA</div>
+            <div className="owner">{String(detail.sla.label)}</div>
+            {Boolean(detail.sla.deadlineAt) && (
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                Persisted deadline: {time(detail.sla.deadlineAt)}
+              </p>
+            )}
+            <span className="badge">
+              {String(detail.sla.status).replaceAll("_", " ")}
+            </span>
           </div>
           <div className="card">
             <div className="case-title">

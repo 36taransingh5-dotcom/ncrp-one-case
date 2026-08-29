@@ -321,6 +321,17 @@ export function OperationsClient({
               submitted
             </strong>
           </div>
+          <div className="card">
+            <div className="label">Institutional SLA</div>
+            <strong>{String(detail.sla.label)}</strong>
+            <p style={{ fontSize: 13, color: "var(--muted)" }}>
+              Evaluated from persisted event timestamps. Overdue waits create
+              SLA and escalation events automatically.
+            </p>
+            <span className="badge">
+              {String(detail.sla.status).replaceAll("_", " ")}
+            </span>
+          </div>
           {message && (
             <div
               className={

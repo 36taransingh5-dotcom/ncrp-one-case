@@ -5,6 +5,7 @@ import type { CaseDetail, CaseStatus, MovementStatus } from "@/lib/types";
 import { classifyIncident } from "@/lib/ai/intake";
 import { reconcileMovements } from "@/lib/domain/money";
 import { assertTransition } from "@/lib/domain/state-machine";
+import { calculateSlaTiming } from "@/lib/domain/sla";
 import {
   simulatedBankAdapter,
   simulatedPoliceAdapter,
@@ -29,16 +30,114 @@ export const money = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
+export function getSlaSnapshot(caseId: string): Row {
+  const request = db
+    .prepare(
+      "SELECT occurred_at FROM case_events WHERE case_id=? AND event_type='FREEZE_REQUEST_CREATED' ORDER BY occurred_at DESC LIMIT 1",
+    )
+    .get(caseId) as { occurred_at: string } | undefined;
+  if (!request)
+    return { status: "not_applicable", label: "No active institutional SLA" };
+  const response = db
+    .prepare(
+      "SELECT occurred_at,event_type FROM case_events WHERE case_id=? AND occurred_at>=? AND event_type IN ('AGENCY_ACKNOWLEDGED','FUNDS_PARTIALLY_SECURED','FUNDS_SECURED') ORDER BY occurred_at LIMIT 1",
+    )
+    .get(caseId, request.occurred_at) as
+    { occurred_at: string; event_type: string } | undefined;
+  const breached = db
+    .prepare(
+      "SELECT occurred_at FROM case_events WHERE case_id=? AND event_type='SLA_BREACHED' ORDER BY occurred_at DESC LIMIT 1",
+    )
+    .get(caseId) as { occurred_at: string } | undefined;
+  const timing = calculateSlaTiming({
+    requestedAt: request.occurred_at,
+    respondedAt: response?.occurred_at,
+    breachedAt: breached?.occurred_at,
+  });
+  const labels = {
+    met: "Beneficiary-bank response received",
+    breached: "Response overdue — escalation active",
+    overdue: "Response overdue — escalation pending",
+    waiting: "Waiting for beneficiary-bank response",
+  };
+  return {
+    status: timing.status,
+    label: labels[timing.status],
+    requestedAt: request.occurred_at,
+    deadlineAt: timing.deadlineAt,
+    respondedAt: response?.occurred_at,
+    breachedAt: breached?.occurred_at,
+  };
+}
+
+function evaluateCaseSla(caseId: string) {
+  const snapshot = getSlaSnapshot(caseId);
+  if (snapshot.status !== "overdue") return;
+  db.exec("BEGIN");
+  try {
+    const existingBreach = db
+      .prepare(
+        "SELECT id FROM case_events WHERE case_id=? AND event_type='SLA_BREACHED' LIMIT 1",
+      )
+      .get(caseId);
+    if (existingBreach) {
+      db.exec("ROLLBACK");
+      return;
+    }
+    addEvent({
+      caseId,
+      type: "SLA_BREACHED",
+      actorType: "system",
+      payload: {
+        label: "Beneficiary-bank response became overdue",
+        deadlineAt: snapshot.deadlineAt,
+        simulated: true,
+      },
+      previous: { sla_status: "waiting" },
+      next: { sla_status: "breached" },
+    });
+    addEvent({
+      caseId,
+      type: "CASE_ESCALATED",
+      actorType: "system",
+      institutionId: "inst-cyber",
+      payload: {
+        label: "Automatic escalation created",
+        reason: "Institutional response exceeded the persisted two-hour SLA",
+        simulated: true,
+      },
+      previous: {},
+      next: { owner: "Bengaluru Cyber Crime Unit — escalation desk" },
+    });
+    db.prepare(
+      "UPDATE cases SET current_owner_name=?,last_activity_at=?,updated_at=? WHERE id=?",
+    ).run("Bengaluru Cyber Crime Unit — escalation desk", now(), now(), caseId);
+    notifyCitizen(
+      caseId,
+      "sla_breached",
+      "Institutional response overdue",
+      "An automatic escalation was created from the persisted response deadline.",
+    );
+    db.exec("COMMIT");
+    publishCaseUpdate(caseId);
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function getCaseByPublicId(
   publicId: string,
   includeAudits = false,
 ): CaseDetail | null {
   initializeDatabase();
-  const caseRow = db
+  let caseRow = db
     .prepare("SELECT * FROM cases WHERE public_case_id=?")
     .get(publicId) as Row | undefined;
   if (!caseRow) return null;
   const caseId = String(caseRow.id);
+  evaluateCaseSla(caseId);
+  caseRow = db.prepare("SELECT * FROM cases WHERE id=?").get(caseId) as Row;
   const citizen = db
     .prepare(
       "SELECT c.*,u.email,u.display_name FROM citizens c JOIN users u ON c.user_id=u.id WHERE c.id=?",
@@ -79,6 +178,7 @@ export function getCaseByPublicId(
     notifications: list(
       "SELECT * FROM notifications WHERE case_id=? ORDER BY created_at DESC",
     ),
+    sla: getSlaSnapshot(caseId),
     ...(includeAudits
       ? {
           audits: list(
@@ -762,47 +862,52 @@ export function createEvidence(input: {
   sha256: string;
 }) {
   const evidenceId = id();
-  db.prepare("INSERT INTO evidence VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
-    evidenceId,
-    input.caseId,
-    input.userId,
-    input.type,
-    input.title,
-    input.path,
-    input.mime,
-    input.size,
-    input.sha256,
-    "{}",
-    now(),
-    now(),
-  );
-  const request = db
-    .prepare(
-      "SELECT * FROM evidence_requests WHERE case_id=? AND status='open' LIMIT 1",
-    )
-    .get(input.caseId) as Row | undefined;
-  if (request)
+  db.exec("BEGIN");
+  try {
+    db.prepare("INSERT INTO evidence VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      evidenceId,
+      input.caseId,
+      input.userId,
+      input.type,
+      input.title,
+      input.path,
+      input.mime,
+      input.size,
+      input.sha256,
+      "{}",
+      now(),
+      now(),
+    );
+    const request = db
+      .prepare(
+        "SELECT * FROM evidence_requests WHERE case_id=? AND status='open' LIMIT 1",
+      )
+      .get(input.caseId) as Row | undefined;
+    if (request)
+      db.prepare(
+        "UPDATE evidence_requests SET status='submitted',submitted_evidence_id=?,resolved_at=? WHERE id=?",
+      ).run(evidenceId, now(), String(request.id));
+    addEvent({
+      caseId: input.caseId,
+      type: "EVIDENCE_UPLOADED",
+      actorType: "citizen",
+      actorId: input.userId,
+      payload: {
+        label: `${input.title} uploaded`,
+        title: input.title,
+        evidenceType: input.type,
+        sha256: input.sha256,
+      },
+      previous: { evidence_request_status: request?.status || null },
+      next: { evidence_request_status: request ? "submitted" : null },
+    });
     db.prepare(
-      "UPDATE evidence_requests SET status='submitted',submitted_evidence_id=?,resolved_at=? WHERE id=?",
-    ).run(evidenceId, now(), String(request.id));
-  addEvent({
-    caseId: input.caseId,
-    type: "EVIDENCE_UPLOADED",
-    actorType: "citizen",
-    actorId: input.userId,
-    payload: {
-      label: `${input.title} uploaded`,
-      title: input.title,
-      evidenceType: input.type,
-      sha256: input.sha256,
-    },
-    previous: { evidence_request_status: request?.status || null },
-    next: { evidence_request_status: request ? "submitted" : null },
-  });
-  db.prepare("UPDATE cases SET last_activity_at=?,updated_at=? WHERE id=?").run(
-    now(),
-    now(),
-    input.caseId,
-  );
+      "UPDATE cases SET last_activity_at=?,updated_at=? WHERE id=?",
+    ).run(now(), now(), input.caseId);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
   publishCaseUpdate(input.caseId);
 }

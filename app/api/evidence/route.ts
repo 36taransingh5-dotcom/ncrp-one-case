@@ -37,17 +37,23 @@ export async function POST(request: Request) {
       process.env.NCRP_UPLOAD_DIR || path.join(process.cwd(), "uploads");
     await fs.mkdir(uploadDir, { recursive: true });
     const filename = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    await fs.writeFile(path.join(uploadDir, filename), bytes);
-    createEvidence({
-      caseId: caseRow.id,
-      userId: user.userId,
-      type: "financial",
-      title,
-      path: filename,
-      mime: file.type,
-      size: file.size,
-      sha256: checksum,
-    });
+    const storedFilePath = path.join(uploadDir, filename);
+    await fs.writeFile(storedFilePath, bytes);
+    try {
+      createEvidence({
+        caseId: caseRow.id,
+        userId: user.userId,
+        type: "financial",
+        title,
+        path: filename,
+        mime: file.type,
+        size: file.size,
+        sha256: checksum,
+      });
+    } catch (error) {
+      await fs.unlink(storedFilePath).catch(() => undefined);
+      throw error;
+    }
     return NextResponse.json({ ok: true, sha256: checksum });
   } catch (error) {
     return NextResponse.json(

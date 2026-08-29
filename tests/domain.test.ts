@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { reconcileMovements } from "../lib/domain/money";
 import { assertTransition, canTransition } from "../lib/domain/state-machine";
+import { calculateSlaTiming } from "../lib/domain/sla";
 
 test("golden case money reconciles before and after the ₹6,700 action", () => {
   const initial = reconcileMovements([
@@ -42,5 +43,39 @@ test("case state machine rejects backwards and invalid transitions", () => {
   assert.throws(
     () => assertTransition("INVESTIGATION", "REPORTED"),
     /Invalid case transition/,
+  );
+});
+
+test("SLA timing is derived from persisted timestamps", () => {
+  const requestedAt = "2026-08-29T10:00:00.000Z";
+  assert.equal(
+    calculateSlaTiming({
+      requestedAt,
+      nowMs: new Date("2026-08-29T11:00:00.000Z").getTime(),
+    }).status,
+    "waiting",
+  );
+  assert.equal(
+    calculateSlaTiming({
+      requestedAt,
+      nowMs: new Date("2026-08-29T12:01:00.000Z").getTime(),
+    }).status,
+    "overdue",
+  );
+  assert.equal(
+    calculateSlaTiming({
+      requestedAt,
+      respondedAt: "2026-08-29T11:30:00.000Z",
+      nowMs: new Date("2026-08-29T13:00:00.000Z").getTime(),
+    }).status,
+    "met",
+  );
+  assert.equal(
+    calculateSlaTiming({
+      requestedAt,
+      respondedAt: "2026-08-29T12:30:00.000Z",
+      nowMs: new Date("2026-08-29T13:00:00.000Z").getTime(),
+    }).status,
+    "overdue",
   );
 });

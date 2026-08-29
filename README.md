@@ -1,5 +1,7 @@
 # NCRP One Case
 
+[![CI](https://github.com/36taransingh5-dotcom/ncrp-one-case/actions/workflows/ci.yml/badge.svg)](https://github.com/36taransingh5-dotcom/ncrp-one-case/actions/workflows/ci.yml)
+
 **Report once. Government coordinates the rest.** NCRP One Case is an independent hackathon prototype of a unified cyber-fraud case coordination experience. It is not an official government service. All people, institutions, transactions, identifiers and downstream actions are synthetic or simulated.
 
 ## What works
@@ -12,6 +14,8 @@
 - Citizen evidence upload with persisted metadata and SHA-256 fingerprint.
 - Bounded investigation, evidence, FIR, escalation, resolution and closure actions with invalid-transition protection.
 - Data-driven fund trail, citizen notification inbox and internal operator audit history.
+- Persisted timestamp-based SLA evaluation with automatic breach and escalation events.
+- Authenticated evidence retrieval, downloadable synthetic case summaries and security headers.
 
 ## Run locally
 
@@ -31,5 +35,7 @@ Run `npm run reset-demo` to restore the golden demo state. Use `npm test`, `npm 
 ## Deployment
 
 Set `NCRP_DATABASE_PATH` and `NCRP_UPLOAD_DIR` to durable mounted volumes, and set a high-entropy `NCRP_SESSION_SECRET`. For a horizontally scaled production deployment, substitute the repository interface with PostgreSQL/storage/realtime infrastructure as described in [INTEGRATIONS.md](INTEGRATIONS.md).
+
+`npm start` pins the standalone server to the repository-level database and upload directories. Container deployments should set both paths to absolute durable-volume locations.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [SEEDING.md](SEEDING.md), and [INTEGRATIONS.md](INTEGRATIONS.md).
