@@ -2,7 +2,14 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 
-const dataPath = process.env.NCRP_DATABASE_PATH || path.join(process.cwd(), "data", "ncrp-one-case.db");
+// Vercel's deployed filesystem is read-only outside /tmp, which is itself
+// wiped between cold starts — fine for this self-contained demo slice
+// (SEEDING.md), which reseeds automatically whenever the database is empty.
+const dataPath =
+  process.env.NCRP_DATABASE_PATH ||
+  (process.env.VERCEL
+    ? "/tmp/ncrp-one-case.db"
+    : path.join(process.cwd(), "data", "ncrp-one-case.db"));
 fs.mkdirSync(path.dirname(dataPath), { recursive: true });
 const globalDb = globalThis as unknown as { ncrpDb?: DatabaseSync };
 export const db = globalDb.ncrpDb ?? new DatabaseSync(dataPath);

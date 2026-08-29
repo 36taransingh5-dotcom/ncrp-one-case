@@ -5,7 +5,9 @@ import path from "node:path";
 function clearDemoUploads() {
   const uploadDir = path.resolve(
     /* turbopackIgnore: true */ process.env.NCRP_UPLOAD_DIR ||
-      path.join(process.cwd(), "uploads"),
+      (process.env.VERCEL
+        ? "/tmp/ncrp-one-case-uploads"
+        : path.join(process.cwd(), "uploads")),
   );
   try {
     for (const entry of fs.readdirSync(/* turbopackIgnore: true */ uploadDir, {

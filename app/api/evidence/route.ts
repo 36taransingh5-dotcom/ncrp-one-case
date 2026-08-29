@@ -35,7 +35,10 @@ export async function POST(request: Request) {
     const bytes = Buffer.from(await file.arrayBuffer());
     const checksum = crypto.createHash("sha256").update(bytes).digest("hex");
     const uploadDir =
-      process.env.NCRP_UPLOAD_DIR || path.join(process.cwd(), "uploads");
+      process.env.NCRP_UPLOAD_DIR ||
+      (process.env.VERCEL
+        ? "/tmp/ncrp-one-case-uploads"
+        : path.join(process.cwd(), "uploads"));
     await fs.mkdir(uploadDir, { recursive: true });
     const filename = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const storedFilePath = path.join(uploadDir, filename);

@@ -28,7 +28,9 @@ export async function GET(
     );
   const uploadDir = path.resolve(
     /* turbopackIgnore: true */ process.env.NCRP_UPLOAD_DIR ||
-      path.join(process.cwd(), "uploads"),
+      (process.env.VERCEL
+        ? "/tmp/ncrp-one-case-uploads"
+        : path.join(process.cwd(), "uploads")),
   );
   const filePath = path.resolve(uploadDir, String(evidence.storage_path));
   if (!filePath.startsWith(`${uploadDir}${path.sep}`))
