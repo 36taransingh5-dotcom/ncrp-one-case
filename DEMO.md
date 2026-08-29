@@ -7,4 +7,4 @@
 5. Show the current owner, FIR review and open bank-statement request.
 6. Close: “One report. One case. Government coordinates the rest.”
 
-Reset at any time from Operations or with `npm run reset-demo`. The intake AI is intentionally not enabled in this demo; the structured seeded incident is deterministic and does not depend on an external model.
+Reset at any time from Operations or with `npm run reset-demo`. The report journey now shows an explainable, deterministic structured interpretation before the citizen confirms case creation. No external AI model is enabled in this demo.

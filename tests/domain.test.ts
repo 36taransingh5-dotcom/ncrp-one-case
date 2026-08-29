@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { reconcileMovements } from "../lib/domain/money";
 import { assertTransition, canTransition } from "../lib/domain/state-machine";
 import { calculateSlaTiming } from "../lib/domain/sla";
+import { classifyIncident } from "../lib/ai/intake";
 
 test("golden case money reconciles before and after the ₹6,700 action", () => {
   const initial = reconcileMovements([
@@ -77,5 +78,22 @@ test("SLA timing is derived from persisted timestamps", () => {
       nowMs: new Date("2026-08-29T13:00:00.000Z").getTime(),
     }).status,
     "overdue",
+  );
+});
+
+test("intake classification is deterministic and exposes a reviewable interpretation", () => {
+  assert.deepEqual(
+    classifyIncident(
+      "Someone claiming to be from SBI said my KYC was due and asked me to install an APK from WhatsApp before a bank transfer.",
+    ),
+    {
+      fraudType: "Financial cyber fraud",
+      mechanism: "Bank impersonation + malicious APK",
+      paymentChannel: "Bank transfer",
+      impersonatedEntity: "SBI (reported by citizen)",
+      confidence: 0.82,
+      summary:
+        "Reported bank impersonation involving a malicious application and an unauthorised payment.",
+    },
   );
 });

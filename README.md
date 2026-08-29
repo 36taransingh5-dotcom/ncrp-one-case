@@ -16,6 +16,7 @@
 - Data-driven fund trail, citizen notification inbox and internal operator audit history.
 - Persisted timestamp-based SLA evaluation with automatic breach and escalation events.
 - Authenticated evidence retrieval, downloadable synthetic case summaries and security headers.
+- Two-step citizen intake: review an explainable structured interpretation before explicitly creating a case.
 
 ## Run locally
 
