@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  output: "standalone",
+  // "standalone" packages a self-contained server.js for the Dockerfile-based
+  // hosts this app targets. Vercel's own build expects the default output
+  // instead, so skip it there.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   turbopack: { root: process.cwd() },
   async headers() {
     return [
