@@ -11,7 +11,13 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
   const [
     { seedDemo },
     { db },
-    { createEvidence, getCaseByPublicId, secureAdditionalFunds },
+    {
+      createCaseFromIntake,
+      createEvidence,
+      executeOperatorAction,
+      getCaseByPublicId,
+      secureAdditionalFunds,
+    },
   ] = await Promise.all([
     import("../lib/seed"),
     import("../lib/db"),
@@ -81,6 +87,57 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
     assert.equal(updated?.case.secured_amount, 37900);
     assert.equal(updated?.case.tracing_amount, 5300);
     assert.equal(updated?.audits?.length, 1);
+
+    const created = createCaseFromIntake({
+      userId: citizen.id,
+      description:
+        "A synthetic caller claimed my bank account needed an urgent update and asked for a transfer.",
+      amount: 1200,
+    });
+    const identified = await executeOperatorAction(
+      created.publicId,
+      operator.id,
+      {
+        type: "IDENTIFY_BENEFICIARY_BANK",
+      },
+    );
+    assert.equal(identified?.case.case_status, "FINANCIAL_INTERVENTION");
+    const frozen = await executeOperatorAction(created.publicId, operator.id, {
+      type: "SEND_FREEZE_REQUEST",
+    });
+    assert.equal(
+      frozen?.events.some(
+        (event) => event.event_type === "FREEZE_REQUEST_CREATED",
+      ),
+      true,
+    );
+    const moved = await executeOperatorAction(created.publicId, operator.id, {
+      type: "MARK_FUNDS_MOVED",
+    });
+    assert.equal(moved?.case.tracing_amount, 1200);
+    const withdrawn = await executeOperatorAction(
+      created.publicId,
+      operator.id,
+      {
+        type: "MARK_FUNDS_WITHDRAWN",
+      },
+    );
+    assert.equal(withdrawn?.case.unrecovered_amount, 1200);
+    const assigned = await executeOperatorAction(
+      created.publicId,
+      operator.id,
+      {
+        type: "ASSIGN_CYBER_CELL",
+      },
+    );
+    assert.equal(
+      assigned?.assignments.some(
+        (assignment) =>
+          assignment.institution_name ===
+          "Bengaluru Cyber Crime Unit (simulated)",
+      ),
+      true,
+    );
   } finally {
     db.close();
     fs.rmSync(testRoot, { recursive: true, force: true });

@@ -5,6 +5,11 @@ import type { CaseDetail } from "@/lib/types";
 
 type Row = Record<string, unknown>;
 type SimpleAction =
+  | "IDENTIFY_BENEFICIARY_BANK"
+  | "SEND_FREEZE_REQUEST"
+  | "MARK_FUNDS_MOVED"
+  | "MARK_FUNDS_WITHDRAWN"
+  | "ASSIGN_CYBER_CELL"
   | "START_INVESTIGATION"
   | "ACCEPT_EVIDENCE"
   | "START_FIR_REVIEW"
@@ -42,6 +47,7 @@ export function OperationsClient({
   const [stage, setStage] = useState("all");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const selected = detail.case as Row;
   const fir = detail.fir as Row;
   const selectedCaseId = String(selected.public_case_id);
@@ -85,6 +91,7 @@ export function OperationsClient({
     });
     const data = await response.json();
     setBusy("");
+    if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return setMessage(data.error || "Case detail could not be loaded.");
     setDetail(data);
@@ -99,6 +106,7 @@ export function OperationsClient({
     });
     const data = await response.json();
     setBusy("");
+    if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return setMessage(data.error || "Action could not be completed.");
     updateDetail(
@@ -125,6 +133,7 @@ export function OperationsClient({
     });
     const data = await response.json();
     setBusy("");
+    if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return setMessage(data.error || "Action could not be completed.");
     updateDetail(
@@ -147,8 +156,39 @@ export function OperationsClient({
   const hasSubmitted = detail.evidenceRequests.some(
     (request) => request.status === "submitted",
   );
+  const hasEvent = (eventType: string) =>
+    detail.events.some((event) => event.event_type === eventType);
+  const hasTraceableMovement = detail.movements.some((movement) =>
+    ["tracing", "moved"].includes(String(movement.movement_status)),
+  );
   const actionButtons: [string, SimpleAction | "REQUEST_EVIDENCE", boolean][] =
     [
+      [
+        "Identify beneficiary bank",
+        "IDENTIFY_BENEFICIARY_BANK",
+        hasEvent("BENEFICIARY_BANK_IDENTIFIED") ||
+          String(selected.case_status) !== "REPORTED",
+      ],
+      [
+        "Send freeze request",
+        "SEND_FREEZE_REQUEST",
+        !hasEvent("BENEFICIARY_BANK_IDENTIFIED") ||
+          hasEvent("FREEZE_REQUEST_CREATED") ||
+          !hasTraceableMovement,
+      ],
+      [
+        "Mark funds moved",
+        "MARK_FUNDS_MOVED",
+        !detail.movements.some(
+          (movement) => movement.movement_status === "tracing",
+        ),
+      ],
+      ["Mark funds withdrawn", "MARK_FUNDS_WITHDRAWN", !hasTraceableMovement],
+      [
+        "Assign Cyber Crime Unit",
+        "ASSIGN_CYBER_CELL",
+        hasEvent("CYBER_CELL_ASSIGNED"),
+      ],
       [
         "Start investigation",
         "START_INVESTIGATION",
@@ -443,6 +483,15 @@ export function OperationsClient({
               role="status"
             >
               {message}
+            </div>
+          )}
+          {sessionExpired && (
+            <div className="error" role="alert">
+              Your operator session has ended.{" "}
+              <a className="rowlink" href="/">
+                Return to demo entry
+              </a>{" "}
+              to continue.
             </div>
           )}
         </aside>

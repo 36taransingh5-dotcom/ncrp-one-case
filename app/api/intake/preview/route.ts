@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { classifyIncident } from "@/lib/ai/intake";
+import { logEvent, logFailure } from "@/lib/observability";
 
 const intakeInput = z.object({
   description: z.string().min(30).max(5000),
@@ -10,11 +11,19 @@ const intakeInput = z.object({
 export async function POST(request: Request) {
   try {
     const input = intakeInput.parse(await request.json());
+    const structured = classifyIncident(input.description);
+    logEvent("intake.previewed", {
+      amount: input.amount,
+      classifier: "deterministic_fallback",
+    });
     return NextResponse.json({
       amount: input.amount,
-      structured: classifyIncident(input.description),
+      structured,
     });
   } catch (error) {
+    logFailure("intake.preview_failed", error, {
+      classifier: "deterministic_fallback",
+    });
     const message =
       error instanceof z.ZodError
         ? "Please describe what happened in at least 30 characters and enter a whole positive amount."

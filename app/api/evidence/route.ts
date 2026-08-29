@@ -6,6 +6,7 @@ import path from "node:path";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createEvidence } from "@/lib/case-engine";
+import { logEvent, logFailure } from "@/lib/observability";
 const MAX_SIZE = 8 * 1024 * 1024,
   allowed = new Set([
     "application/pdf",
@@ -54,8 +55,15 @@ export async function POST(request: Request) {
       await fs.unlink(storedFilePath).catch(() => undefined);
       throw error;
     }
+    logEvent("evidence.uploaded", {
+      caseId: caseRow.id,
+      actorId: user.userId,
+      mime: file.type,
+      size: file.size,
+    });
     return NextResponse.json({ ok: true, sha256: checksum });
   } catch (error) {
+    logFailure("evidence.upload_failed", error);
     return NextResponse.json(
       {
         error:

@@ -38,6 +38,10 @@ select {
 button {
   cursor: pointer;
 }
+:focus-visible {
+  outline: 3px solid #0e7490;
+  outline-offset: 3px;
+}
 .shell {
   max-width: 1240px;
   margin: auto;
@@ -378,6 +382,9 @@ button {
   border-radius: 7px;
   font-size: 13px;
 }
+.recovery-card {
+  border-left: 4px solid var(--amber);
+}
 .mobile-only {
   display: none;
 }
@@ -432,6 +439,16 @@ button {
   }
   .hero h1 {
     font-size: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {

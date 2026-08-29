@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { createCaseFromIntake } from "@/lib/case-engine";
+import { logFailure } from "@/lib/observability";
 
 const intakeInput = z.object({
   description: z.string().min(30).max(5000),
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       createCaseFromIntake({ ...input, userId: user.userId }),
     );
   } catch (error) {
+    logFailure("case.creation_failed", error);
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }

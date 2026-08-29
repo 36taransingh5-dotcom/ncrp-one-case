@@ -10,11 +10,30 @@ import {
   simulatedBankAdapter,
   simulatedPoliceAdapter,
 } from "@/lib/adapters/simulated";
+import { logEvent, logFailure } from "@/lib/observability";
 
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 type Row = Record<string, unknown>;
 const json = (value: unknown) => JSON.stringify(value);
+async function callAdapter<T>(
+  caseId: string,
+  operation: string,
+  call: () => Promise<T>,
+) {
+  try {
+    const result = await call();
+    logEvent("adapter.call_completed", {
+      caseId,
+      operation,
+      outcome: "success",
+    });
+    return result;
+  } catch (error) {
+    logFailure("adapter.call_failed", error, { caseId, operation });
+    throw error;
+  }
+}
 const parse = (row: Row) =>
   Object.fromEntries(
     Object.entries(row).map(([key, value]) =>
@@ -411,6 +430,12 @@ export function createCaseFromIntake(input: {
     throw error;
   }
   publishCaseUpdate(caseId);
+  logEvent("case.created", {
+    caseId,
+    publicCaseId: publicId,
+    amount: input.amount,
+    actorId: input.userId,
+  });
   return { publicId, structured };
 }
 
@@ -423,6 +448,12 @@ export async function secureAdditionalFunds(
   if (!detail) throw new Error("CASE_NOT_FOUND");
   const caseRow = detail.case,
     caseId = String(caseRow.id);
+  logEvent("operator.command.started", {
+    caseId,
+    publicCaseId,
+    action: "SECURE_ADDITIONAL_FUNDS",
+    actorId,
+  });
   if (amount !== 6700)
     throw new Error(
       "Only the validated ₹6,700 secondary-account hold is available in this demo.",
@@ -434,10 +465,8 @@ export async function secureAdditionalFunds(
     .get(caseId, amount) as Row | undefined;
   if (!candidate)
     throw new Error("No matching traceable fund movement remains.");
-  const adapterResult = await simulatedBankAdapter.requestFreeze(
-    caseId,
-    "ICICI ••1834",
-    amount,
+  const adapterResult = await callAdapter(caseId, "bank.request_freeze", () =>
+    simulatedBankAdapter.requestFreeze(caseId, "ICICI ••1834", amount),
   );
   if (!adapterResult.accepted)
     throw new Error("The simulated bank adapter declined the freeze request.");
@@ -486,13 +515,30 @@ export async function secureAdditionalFunds(
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");
+    logFailure("operator.command.failed", error, {
+      caseId,
+      publicCaseId,
+      action: "SECURE_ADDITIONAL_FUNDS",
+      actorId,
+    });
     throw error;
   }
   publishCaseUpdate(caseId);
+  logEvent("operator.command.completed", {
+    caseId,
+    publicCaseId,
+    action: "SECURE_ADDITIONAL_FUNDS",
+    actorId,
+  });
   return getCaseByPublicId(publicCaseId, true);
 }
 
 export type OperatorAction =
+  | { type: "IDENTIFY_BENEFICIARY_BANK" }
+  | { type: "SEND_FREEZE_REQUEST" }
+  | { type: "MARK_FUNDS_MOVED" }
+  | { type: "MARK_FUNDS_WITHDRAWN" }
+  | { type: "ASSIGN_CYBER_CELL" }
   | { type: "START_INVESTIGATION" }
   | { type: "REQUEST_EVIDENCE"; title: string; description: string }
   | { type: "ACCEPT_EVIDENCE" }
@@ -513,15 +559,332 @@ export async function executeOperatorAction(
     caseId = String(caseRow.id),
     current = String(caseRow.case_status) as CaseStatus;
   let adapter: Row = {};
+  logEvent("operator.command.started", {
+    caseId,
+    publicCaseId,
+    action: action.type,
+    actorId,
+  });
+  if (action.type === "IDENTIFY_BENEFICIARY_BANK") {
+    if (current !== "REPORTED")
+      throw new Error(
+        "Beneficiary identification is available only while a newly reported case is awaiting financial intervention.",
+      );
+    const transaction = db
+      .prepare(
+        "SELECT transaction_ref FROM transactions WHERE case_id=? ORDER BY occurred_at LIMIT 1",
+      )
+      .get(caseId) as { transaction_ref: string } | undefined;
+    adapter = await callAdapter(caseId, "bank.identify_beneficiary", () =>
+      simulatedBankAdapter.identifyBeneficiaryBank(
+        caseId,
+        transaction?.transaction_ref || `SIM-INTAKE-${caseId.slice(-6)}`,
+      ),
+    );
+  }
+  if (action.type === "SEND_FREEZE_REQUEST") {
+    const identified = db
+      .prepare(
+        "SELECT id FROM case_events WHERE case_id=? AND event_type='BENEFICIARY_BANK_IDENTIFIED' LIMIT 1",
+      )
+      .get(caseId);
+    if (!identified)
+      throw new Error(
+        "Identify the beneficiary bank before sending a freeze request.",
+      );
+    const movement = db
+      .prepare(
+        "SELECT fm.amount,t.destination_identifier_masked FROM fund_movements fm LEFT JOIN transactions t ON t.id=fm.destination_transaction_id WHERE fm.case_id=? AND fm.movement_status IN ('tracing','moved') ORDER BY fm.occurred_at LIMIT 1",
+      )
+      .get(caseId) as
+      | { amount: number; destination_identifier_masked: string | null }
+      | undefined;
+    if (!movement)
+      throw new Error("No traceable funds are available for a freeze request.");
+    adapter = await callAdapter(caseId, "bank.request_freeze", () =>
+      simulatedBankAdapter.requestFreeze(
+        caseId,
+        movement.destination_identifier_masked ||
+          "Beneficiary account pending identification",
+        Number(movement.amount),
+      ),
+    );
+  }
+  if (action.type === "ASSIGN_CYBER_CELL")
+    adapter = await callAdapter(caseId, "police.assign_cyber_cell", () =>
+      simulatedPoliceAdapter.assignCyberCell(caseId),
+    );
   if (action.type === "START_INVESTIGATION")
-    adapter = await simulatedPoliceAdapter.assignCyberCell(caseId);
+    adapter = await callAdapter(caseId, "police.assign_cyber_cell", () =>
+      simulatedPoliceAdapter.assignCyberCell(caseId),
+    );
   if (action.type === "START_FIR_REVIEW")
-    adapter = await simulatedPoliceAdapter.startFirReview(caseId);
+    adapter = await callAdapter(caseId, "police.start_fir_review", () =>
+      simulatedPoliceAdapter.startFirReview(caseId),
+    );
   if (action.type === "REGISTER_FIR")
-    adapter = await simulatedPoliceAdapter.registerFir(caseId);
+    adapter = await callAdapter(caseId, "police.register_fir", () =>
+      simulatedPoliceAdapter.registerFir(caseId),
+    );
   db.exec("BEGIN");
   try {
     switch (action.type) {
+      case "IDENTIFY_BENEFICIARY_BANK": {
+        const prior = db
+          .prepare(
+            "SELECT id FROM case_events WHERE case_id=? AND event_type='BENEFICIARY_BANK_IDENTIFIED' LIMIT 1",
+          )
+          .get(caseId);
+        if (prior)
+          throw new Error(
+            "A beneficiary bank is already recorded for this case.",
+          );
+        let destination = db
+          .prepare(
+            "SELECT id FROM transactions WHERE case_id=? AND institution_id='inst-hdfc' ORDER BY occurred_at LIMIT 1",
+          )
+          .get(caseId) as Row | undefined;
+        if (!destination) {
+          const destinationId = id();
+          db.prepare(
+            "INSERT INTO transactions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          ).run(
+            destinationId,
+            caseId,
+            null,
+            String(adapter.reference),
+            String(adapter.institutionId),
+            "inbound",
+            Number(caseRow.reported_amount),
+            "transfer",
+            "identified",
+            now(),
+            String(adapter.accountRef),
+            "Reported source account",
+            json({ simulated: true }),
+            now(),
+          );
+          db.prepare(
+            "UPDATE fund_movements SET destination_transaction_id=? WHERE case_id=? AND destination_transaction_id IS NULL",
+          ).run(destinationId, caseId);
+          destination = { id: destinationId };
+        }
+        updateStage(
+          caseId,
+          current,
+          "FINANCIAL_INTERVENTION",
+          "bank",
+          "HDFC Bank — fraud response team (simulated)",
+        );
+        addEvent({
+          caseId,
+          type: "BENEFICIARY_BANK_IDENTIFIED",
+          actorType: "operator",
+          actorId,
+          institutionId: String(adapter.institutionId),
+          payload: {
+            label: "Beneficiary bank identified",
+            simulated: true,
+            ...adapter,
+          },
+          previous: { case_status: current },
+          next: {
+            case_status: "FINANCIAL_INTERVENTION",
+            destinationTransactionId: destination.id,
+          },
+        });
+        notifyCitizen(
+          caseId,
+          "beneficiary_identified",
+          "Beneficiary bank identified",
+          "The simulated beneficiary bank is now coordinating the next protective action.",
+        );
+        break;
+      }
+      case "SEND_FREEZE_REQUEST": {
+        const prior = db
+          .prepare(
+            "SELECT id FROM case_events WHERE case_id=? AND event_type='FREEZE_REQUEST_CREATED' LIMIT 1",
+          )
+          .get(caseId);
+        if (prior)
+          throw new Error("A freeze request is already active for this case.");
+        const amount = Number(
+          (
+            db
+              .prepare(
+                "SELECT amount FROM fund_movements WHERE case_id=? AND movement_status IN ('tracing','moved') ORDER BY occurred_at LIMIT 1",
+              )
+              .get(caseId) as { amount: number }
+          ).amount,
+        );
+        db.prepare(
+          "UPDATE cases SET current_owner_type='bank',current_owner_name=?,last_activity_at=?,updated_at=? WHERE id=?",
+        ).run(
+          "HDFC Bank — fraud response team (simulated)",
+          now(),
+          now(),
+          caseId,
+        );
+        addEvent({
+          caseId,
+          type: "FREEZE_REQUEST_CREATED",
+          actorType: "operator",
+          actorId,
+          institutionId: "inst-hdfc",
+          payload: {
+            label: "Freeze request sent to beneficiary bank",
+            amount,
+            simulated: true,
+            ...adapter,
+          },
+          previous: { owner: caseRow.current_owner_name },
+          next: { owner: "HDFC Bank — fraud response team (simulated)" },
+        });
+        notifyCitizen(
+          caseId,
+          "freeze_requested",
+          "Freeze request sent",
+          "A simulated beneficiary-bank freeze request was recorded for the traceable funds.",
+        );
+        break;
+      }
+      case "MARK_FUNDS_MOVED": {
+        const freezeRequested = db
+          .prepare(
+            "SELECT id FROM case_events WHERE case_id=? AND event_type='FREEZE_REQUEST_CREATED' LIMIT 1",
+          )
+          .get(caseId);
+        if (!freezeRequested)
+          throw new Error(
+            "Send a freeze request before recording a secondary movement.",
+          );
+        const movement = db
+          .prepare(
+            "SELECT id,amount FROM fund_movements WHERE case_id=? AND movement_status='tracing' ORDER BY occurred_at LIMIT 1",
+          )
+          .get(caseId) as Row | undefined;
+        if (!movement)
+          throw new Error("No tracing movement is available to mark as moved.");
+        db.prepare(
+          "UPDATE fund_movements SET movement_status='moved' WHERE id=?",
+        ).run(String(movement.id));
+        const totals = recalculateMoney(caseId);
+        addEvent({
+          caseId,
+          type: "FUNDS_MOVED",
+          actorType: "operator",
+          actorId,
+          payload: {
+            label: `${money(Number(movement.amount))} moved to a secondary account`,
+            simulated: true,
+          },
+          previous: { movement_status: "tracing" },
+          next: { movement_status: "moved", ...totals },
+        });
+        notifyCitizen(
+          caseId,
+          "funds_moved",
+          "Funds moved",
+          "Traceable funds moved to another simulated account and remain under review.",
+        );
+        break;
+      }
+      case "MARK_FUNDS_WITHDRAWN": {
+        const freezeRequested = db
+          .prepare(
+            "SELECT id FROM case_events WHERE case_id=? AND event_type='FREEZE_REQUEST_CREATED' LIMIT 1",
+          )
+          .get(caseId);
+        if (!freezeRequested)
+          throw new Error(
+            "Send a freeze request before recording an unrecovered withdrawal.",
+          );
+        const movement = db
+          .prepare(
+            "SELECT id,amount,destination_transaction_id FROM fund_movements WHERE case_id=? AND movement_status IN ('tracing','moved') ORDER BY occurred_at LIMIT 1",
+          )
+          .get(caseId) as Row | undefined;
+        if (!movement)
+          throw new Error(
+            "No traceable movement is available to mark as withdrawn.",
+          );
+        db.prepare(
+          "UPDATE fund_movements SET movement_status='unrecovered' WHERE id=?",
+        ).run(String(movement.id));
+        if (movement.destination_transaction_id)
+          db.prepare(
+            "UPDATE transactions SET transaction_status='withdrawn' WHERE id=?",
+          ).run(String(movement.destination_transaction_id));
+        const totals = recalculateMoney(caseId);
+        addEvent({
+          caseId,
+          type: "FUNDS_WITHDRAWN",
+          actorType: "operator",
+          actorId,
+          payload: {
+            label: `${money(Number(movement.amount))} marked unrecovered after withdrawal`,
+            simulated: true,
+          },
+          previous: { movement_status: "tracing_or_moved" },
+          next: { movement_status: "unrecovered", ...totals },
+        });
+        notifyCitizen(
+          caseId,
+          "funds_withdrawn",
+          "Funds marked unrecovered",
+          "The simulated trace shows this amount as withdrawn and no longer recoverable through a hold.",
+        );
+        break;
+      }
+      case "ASSIGN_CYBER_CELL": {
+        const existing = db
+          .prepare(
+            "SELECT id FROM agency_assignments WHERE case_id=? AND institution_id='inst-cyber'",
+          )
+          .get(caseId);
+        if (existing)
+          throw new Error(
+            "The Cyber Crime Unit is already assigned to this case.",
+          );
+        db.prepare(
+          "INSERT INTO agency_assignments VALUES(?,?,?,?,?,?,?,?,?)",
+        ).run(
+          id(),
+          caseId,
+          "inst-cyber",
+          "investigation",
+          "acknowledged",
+          now(),
+          now(),
+          null,
+          now(),
+        );
+        db.prepare(
+          "UPDATE cases SET current_owner_type='government',current_owner_name=?,last_activity_at=?,updated_at=? WHERE id=?",
+        ).run("Bengaluru Cyber Crime Unit", now(), now(), caseId);
+        addEvent({
+          caseId,
+          type: "CYBER_CELL_ASSIGNED",
+          actorType: "operator",
+          actorId,
+          institutionId: "inst-cyber",
+          payload: {
+            label: "Bengaluru Cyber Crime Unit assigned",
+            simulated: true,
+            ...adapter,
+          },
+          previous: { owner: caseRow.current_owner_name },
+          next: { owner: "Bengaluru Cyber Crime Unit" },
+        });
+        notifyCitizen(
+          caseId,
+          "cyber_cell_assigned",
+          "Cyber Crime Unit assigned",
+          "The simulated Cyber Crime Unit now has visibility of this case.",
+        );
+        break;
+      }
       case "START_INVESTIGATION": {
         updateStage(
           caseId,
@@ -835,9 +1198,21 @@ export async function executeOperatorAction(
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");
+    logFailure("operator.command.failed", error, {
+      caseId,
+      publicCaseId,
+      action: action.type,
+      actorId,
+    });
     throw error;
   }
   publishCaseUpdate(caseId);
+  logEvent("operator.command.completed", {
+    caseId,
+    publicCaseId,
+    action: action.type,
+    actorId,
+  });
   return getCaseByPublicId(publicCaseId, true);
 }
 

@@ -24,6 +24,8 @@ const eventCopy: Record<string, string> = {
   FREEZE_REQUEST_CREATED: "Freeze request sent",
   FUNDS_PARTIALLY_SECURED: "Funds partially secured",
   FUNDS_SECURED: "Additional funds secured",
+  FUNDS_MOVED: "Funds moved to a secondary account",
+  FUNDS_WITHDRAWN: "Funds marked unrecovered after withdrawal",
   CYBER_CELL_ASSIGNED: "Cyber Crime Unit assigned",
   INVESTIGATION_STARTED: "Investigation started",
   EVIDENCE_REQUESTED: "Evidence requested",
@@ -46,20 +48,48 @@ export function CitizenCaseClient({
   const [detail, setDetail] = useState(initial),
     [connection, setConnection] = useState("Live updates connected"),
     [uploading, setUploading] = useState(false),
+    [sessionExpired, setSessionExpired] = useState(false),
     [message, setMessage] = useState("");
   const reload = async () => {
-    const response = await fetch(`/api/cases/${caseId}`, { cache: "no-store" });
-    if (response.ok) setDetail(await response.json());
+    try {
+      const response = await fetch(`/api/cases/${caseId}`, {
+        cache: "no-store",
+      });
+      if (response.status === 401) {
+        setSessionExpired(true);
+        setConnection("Live updates paused");
+        setMessage(
+          "Your demo session has ended. Re-enter the citizen demo to continue.",
+        );
+        return;
+      }
+      if (!response.ok) {
+        setMessage(
+          "We could not refresh the case. Check your connection and retry.",
+        );
+        return;
+      }
+      setSessionExpired(false);
+      setDetail(await response.json());
+    } catch {
+      setMessage(
+        "We could not refresh the case. Check your connection and retry.",
+      );
+    }
   };
   useEffect(() => {
     const source = new EventSource("/api/realtime");
     source.onopen = () => setConnection("Live updates connected");
     source.onerror = () => setConnection("Live updates reconnecting");
     source.onmessage = async (event) => {
-      const payload = JSON.parse(event.data);
-      if (payload.caseId === String(initial.case.id)) {
-        await reload();
-        setMessage("Your case has just been updated.");
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.caseId === String(initial.case.id)) {
+          await reload();
+          setMessage("Your case has just been updated.");
+        }
+      } catch {
+        setConnection("Live updates reconnecting");
       }
     };
     return () => source.close();
@@ -95,12 +125,29 @@ export function CitizenCaseClient({
     }
   };
   const markRead = async () => {
-    await fetch("/api/notifications/read", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId }),
-    });
-    await reload();
+    try {
+      const response = await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId }),
+      });
+      if (!response.ok) throw new Error("Notifications could not be updated.");
+      await reload();
+    } catch {
+      setMessage("Notifications could not be updated. Please try again.");
+    }
+  };
+  const shareReference = async () => {
+    try {
+      await navigator.clipboard.writeText(String(detail.case.public_case_id));
+      setMessage(
+        "Case reference copied. Share it only with the relevant support team.",
+      );
+    } catch {
+      setMessage(
+        "We could not copy the reference. Select the case ID and copy it manually.",
+      );
+    }
   };
   const sourceAccount = String(
     detail.movements.find((movement) => movement.source_account)
@@ -133,12 +180,7 @@ export function CitizenCaseClient({
               >
                 Download summary
               </a>
-              <button
-                className="btn secondary"
-                onClick={() =>
-                  navigator.clipboard.writeText(String(c.public_case_id))
-                }
-              >
+              <button className="btn secondary" onClick={shareReference}>
                 Share case reference
               </button>
               <a href="/" className="btn secondary">
@@ -188,6 +230,17 @@ export function CitizenCaseClient({
               style={{ marginBottom: 18 }}
             >
               {message}
+            </div>
+          )}
+          {sessionExpired && (
+            <div className="card section recovery-card">
+              <h2>Re-enter the demo to continue</h2>
+              <p style={{ color: "var(--muted)" }}>
+                Your signed demo session expired. No case data has been lost.
+              </p>
+              <a className="btn" href="/">
+                Return to demo entry
+              </a>
             </div>
           )}
           <div className="card section action">
@@ -363,6 +416,15 @@ export function CitizenCaseClient({
             <span className="badge">
               {String(detail.sla.status).replaceAll("_", " ")}
             </span>
+            {connection !== "Live updates connected" && (
+              <button
+                className="btn secondary"
+                style={{ marginTop: 12 }}
+                onClick={reload}
+              >
+                Refresh case
+              </button>
+            )}
           </div>
           <div className="card">
             <div className="case-title">

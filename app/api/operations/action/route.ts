@@ -3,8 +3,14 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { executeOperatorAction } from "@/lib/case-engine";
 import { ensureDemoData } from "@/lib/demo";
+import { logFailure } from "@/lib/observability";
 
 const actionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("IDENTIFY_BENEFICIARY_BANK") }),
+  z.object({ type: z.literal("SEND_FREEZE_REQUEST") }),
+  z.object({ type: z.literal("MARK_FUNDS_MOVED") }),
+  z.object({ type: z.literal("MARK_FUNDS_WITHDRAWN") }),
+  z.object({ type: z.literal("ASSIGN_CYBER_CELL") }),
   z.object({ type: z.literal("START_INVESTIGATION") }),
   z.object({ type: z.literal("ACCEPT_EVIDENCE") }),
   z.object({ type: z.literal("START_FIR_REVIEW") }),
@@ -32,14 +38,18 @@ export async function POST(request: Request) {
       await executeOperatorAction(caseId, user.userId, action),
     );
   } catch (error) {
+    logFailure("operator.command_http_failed", error);
+    const unauthorised =
+      error instanceof Error && error.message === "UNAUTHORIZED";
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
+        error: unauthorised
+          ? "Operator access is required for this action. Re-enter the operations demo and try again."
+          : error instanceof Error
             ? error.message
             : "Unable to process this action.",
       },
-      { status: 400 },
+      { status: unauthorised ? 401 : 400 },
     );
   }
 }
