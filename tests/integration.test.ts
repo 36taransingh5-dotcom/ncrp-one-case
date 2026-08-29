@@ -30,6 +30,19 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
         "SELECT id FROM users WHERE role='citizen' ORDER BY created_at LIMIT 1",
       )
       .get() as { id: string };
+    const operatorForRequest = db
+      .prepare("SELECT id FROM users WHERE role='operator'")
+      .get() as { id: string };
+    await executeOperatorAction("NCRP-26-847193", operatorForRequest.id, {
+      type: "REQUEST_EVIDENCE",
+      title: "Bank statement needed",
+      description: "Please upload a statement covering the incident window.",
+    });
+    const request = db
+      .prepare(
+        "SELECT id FROM evidence_requests WHERE case_id='case-golden' AND status='open'",
+      )
+      .get() as { id: string };
     createEvidence({
       caseId: "case-golden",
       userId: citizen.id,
@@ -51,8 +64,8 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
     assert.equal(
       (
         db
-          .prepare("SELECT status FROM evidence_requests WHERE id='req-golden'")
-          .get() as { status: string }
+          .prepare("SELECT status FROM evidence_requests WHERE id=?")
+          .get(request.id) as { status: string }
       ).status,
       "submitted",
     );
@@ -86,7 +99,10 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
     );
     assert.equal(updated?.case.secured_amount, 37900);
     assert.equal(updated?.case.tracing_amount, 5300);
-    assert.equal(updated?.audits?.length, 1);
+    assert.equal(
+      updated?.audits?.some((entry) => entry.action === "FUNDS_SECURED"),
+      true,
+    );
 
     const created = createCaseFromIntake({
       userId: citizen.id,

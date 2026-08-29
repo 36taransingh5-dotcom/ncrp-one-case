@@ -27,3 +27,12 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, actor_user_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL);
   `);
 }
+
+/**
+ * node:sqlite returns rows with a null prototype, which React refuses to
+ * serialise across the server/client boundary. Every row that reaches a client
+ * component must pass through here first.
+ */
+export function toPlainRow<T extends Record<string, unknown>>(row: T): T {
+  return { ...row };
+}

@@ -135,7 +135,7 @@ function evaluateCaseSla(caseId: string) {
       caseId,
       "sla_breached",
       "Institutional response overdue",
-      "An automatic escalation was created from the persisted response deadline.",
+      "The bank did not answer in time, so your case has been escalated automatically.",
     );
     db.exec("COMMIT");
     publishCaseUpdate(caseId);
@@ -177,8 +177,11 @@ export function getCaseByPublicId(
     events: list(
       "SELECT e.*,i.name institution_name FROM case_events e LEFT JOIN institutions i ON i.id=e.institution_id WHERE e.case_id=? ORDER BY e.occurred_at DESC",
     ),
+    // `from_account` is the immediate sender recorded on the destination
+    // transaction, which is what makes the onward hops (HDFC → ICICI) visible
+    // instead of flattening every movement against the reported source.
     movements: list(
-      "SELECT fm.*, st.source_identifier_masked source_account, dt.destination_identifier_masked destination_account FROM fund_movements fm LEFT JOIN transactions st ON st.id=fm.source_transaction_id LEFT JOIN transactions dt ON dt.id=fm.destination_transaction_id WHERE fm.case_id=? ORDER BY fm.occurred_at",
+      "SELECT fm.*, st.source_identifier_masked source_account, st.source_identifier_masked origin_account, dt.destination_identifier_masked destination_account, COALESCE(dt.source_identifier_masked, st.source_identifier_masked) from_account, dt.destination_identifier_masked to_account, di.name to_institution FROM fund_movements fm LEFT JOIN transactions st ON st.id=fm.source_transaction_id LEFT JOIN transactions dt ON dt.id=fm.destination_transaction_id LEFT JOIN institutions di ON di.id=dt.institution_id WHERE fm.case_id=? ORDER BY fm.created_at, fm.id",
     ),
     evidence: list(
       "SELECT * FROM evidence WHERE case_id=? ORDER BY uploaded_at DESC",
@@ -422,7 +425,7 @@ export function createCaseFromIntake(input: {
       caseId,
       "case_created",
       `Case ${publicId} created`,
-      "Your synthetic demo case has been created and is ready for financial intervention.",
+      "Your case has been created. Work to protect the money starts immediately.",
     );
     db.exec("COMMIT");
   } catch (error) {
@@ -492,7 +495,7 @@ export async function secureAdditionalFunds(
       actorId,
       institutionId: "inst-icici",
       payload: {
-        label: `${money(amount)} secured in secondary beneficiary account`,
+        label: `${money(amount)} additional funds secured`,
         amount,
         account: "ICICI ••1834",
         simulated: true,
@@ -510,7 +513,7 @@ export async function secureAdditionalFunds(
       caseId,
       "funds_secured",
       `${money(amount)} additional funds secured`,
-      "A simulated beneficiary-bank hold secured additional traceable funds in account ••1834.",
+      "This money is now held in account ••1834 and cannot be moved.",
     );
     db.exec("COMMIT");
   } catch (error) {
@@ -697,7 +700,7 @@ export async function executeOperatorAction(
           caseId,
           "beneficiary_identified",
           "Beneficiary bank identified",
-          "The simulated beneficiary bank is now coordinating the next protective action.",
+          "The account that received your money has been traced. A hold can now be requested.",
         );
         break;
       }
@@ -745,7 +748,7 @@ export async function executeOperatorAction(
           caseId,
           "freeze_requested",
           "Freeze request sent",
-          "A simulated beneficiary-bank freeze request was recorded for the traceable funds.",
+          "The bank holding your money has been asked to stop it from moving again.",
         );
         break;
       }
@@ -785,8 +788,8 @@ export async function executeOperatorAction(
         notifyCitizen(
           caseId,
           "funds_moved",
-          "Funds moved",
-          "Traceable funds moved to another simulated account and remain under review.",
+          "Money traced onward",
+          "Part of your money was pushed to another account. The trail is being followed.",
         );
         break;
       }
@@ -832,8 +835,8 @@ export async function executeOperatorAction(
         notifyCitizen(
           caseId,
           "funds_withdrawn",
-          "Funds marked unrecovered",
-          "The simulated trace shows this amount as withdrawn and no longer recoverable through a hold.",
+          "Money withdrawn",
+          "This money was taken out before a hold could reach it.",
         );
         break;
       }
@@ -881,7 +884,7 @@ export async function executeOperatorAction(
           caseId,
           "cyber_cell_assigned",
           "Cyber Crime Unit assigned",
-          "The simulated Cyber Crime Unit now has visibility of this case.",
+          "A cyber crime team can now see your case and its full history.",
         );
         break;
       }
@@ -930,7 +933,7 @@ export async function executeOperatorAction(
           caseId,
           "investigation_started",
           "Investigation started",
-          "The simulated Cyber Crime Unit now owns the next action.",
+          "The investigation into who did this is now under way.",
         );
         break;
       }
@@ -974,7 +977,7 @@ export async function executeOperatorAction(
         notifyCitizen(
           caseId,
           "evidence_requested",
-          "Evidence requested",
+          "Document requested",
           action.description,
         );
         break;
@@ -1006,8 +1009,8 @@ export async function executeOperatorAction(
         notifyCitizen(
           caseId,
           "evidence_accepted",
-          "Evidence accepted",
-          "The assigned team accepted your submitted evidence.",
+          "Document accepted",
+          "The team checked your document and accepted it.",
         );
         break;
       }
@@ -1026,7 +1029,7 @@ export async function executeOperatorAction(
           db.prepare(
             "UPDATE fir_records SET fir_status='under_review',reason=?,updated_at=? WHERE case_id=?",
           ).run(
-            "Review is in progress; no FIR outcome has been determined.",
+            "Police are reviewing your case. No decision has been made yet.",
             now(),
             caseId,
           );
@@ -1038,7 +1041,7 @@ export async function executeOperatorAction(
             null,
             "Bengaluru Cyber Crime Police Station (simulated)",
             null,
-            "Review is in progress; no FIR outcome has been determined.",
+            "Police are reviewing your case. No decision has been made yet.",
             now(),
             now(),
           );
@@ -1056,7 +1059,7 @@ export async function executeOperatorAction(
           caseId,
           "fir_review",
           "FIR review started",
-          "The simulated police station has started reviewing the case for FIR registration.",
+          "Police are reviewing your case to decide on an FIR. You do not need to visit a station.",
         );
         break;
       }
@@ -1069,7 +1072,7 @@ export async function executeOperatorAction(
         ).run(
           String(adapter.firNumber),
           now(),
-          "Registered in the simulated police workflow.",
+          "An FIR has been registered against this case.",
           now(),
           caseId,
         );
@@ -1092,8 +1095,8 @@ export async function executeOperatorAction(
         notifyCitizen(
           caseId,
           "fir_registered",
-          "FIR registered in simulation",
-          `Reference ${String(adapter.firNumber)} was created in the simulated police adapter.`,
+          "FIR registered",
+          `Your FIR reference is ${String(adapter.firNumber)}.`,
         );
         break;
       }
@@ -1131,7 +1134,7 @@ export async function executeOperatorAction(
           caseId,
           "case_escalated",
           "Case escalated",
-          "An escalation was recorded for the delayed institutional response.",
+          "Your case was pushed up because a response was late.",
         );
         break;
       }
@@ -1160,7 +1163,7 @@ export async function executeOperatorAction(
           caseId,
           "case_resolved",
           "Case moved to resolution",
-          "The active investigation work is complete in this simulation.",
+          "The active work on your case is complete.",
         );
         break;
       }
@@ -1189,7 +1192,7 @@ export async function executeOperatorAction(
           caseId,
           "case_closed",
           "Case closed",
-          "The synthetic case has been closed.",
+          "Your case has been closed.",
         );
         break;
       }

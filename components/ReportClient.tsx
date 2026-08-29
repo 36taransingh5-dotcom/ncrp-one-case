@@ -57,7 +57,7 @@ export function ReportClient() {
     const data = await response.json();
     setBusy(null);
     if (response.status === 401 || data.error === "UNAUTHORIZED") {
-      setStatus("Enter the citizen demo first to create a synthetic case.");
+      setStatus("Enter the citizen demo first to create a case.");
       return;
     }
     if (!response.ok) {
@@ -75,21 +75,19 @@ export function ReportClient() {
     return (
       <section className="form" aria-labelledby="review-heading">
         <div>
-          <div className="eyebrow">Step 2 of 2 · Review</div>
-          <h2 id="review-heading" style={{ margin: "6px 0" }}>
-            We understood
-          </h2>
+          <span className="eyebrow">Step 2 of 2 · Review</span>
+          <h2 id="review-heading">We understood</h2>
           <p style={{ color: "var(--muted)", marginTop: 0 }}>
             {structured.summary}
           </p>
         </div>
         <dl className="intake-review-grid">
           <div>
-            <dt>Reported type</dt>
+            <dt>Fraud type</dt>
             <dd>{structured.fraudType}</dd>
           </div>
           <div>
-            <dt>Likely mechanism</dt>
+            <dt>Mechanism</dt>
             <dd>{structured.mechanism}</dd>
           </div>
           <div>
@@ -97,17 +95,17 @@ export function ReportClient() {
             <dd>{structured.paymentChannel}</dd>
           </div>
           <div>
-            <dt>Reported institution</dt>
+            <dt>Impersonated institution</dt>
             <dd>{structured.impersonatedEntity || "Not identified"}</dd>
           </div>
           <div>
-            <dt>Reported loss</dt>
+            <dt>Amount</dt>
             <dd>₹{preview.amount.toLocaleString("en-IN")}</dd>
           </div>
         </dl>
-        <p className="footer-note" style={{ padding: 0, margin: 0 }}>
-          This is an assistive interpretation, not legal confirmation. You can
-          go back and correct your report before creating the synthetic case.
+        <p className="footer-note review-note">
+          This is our reading of your report, not a legal finding. Correct
+          anything that is wrong before you create the case.
         </p>
         {status && (
           <div className="error" role="status">
@@ -131,7 +129,11 @@ export function ReportClient() {
           >
             {busy === "create" ? "Creating case…" : "Confirm and create case"}
           </button>
-          <DemoEntry role="citizen" label="Enter citizen demo first" />
+          <DemoEntry
+            role="citizen"
+            label="Enter citizen demo first"
+            variant="secondary"
+          />
         </div>
       </section>
     );
@@ -139,7 +141,7 @@ export function ReportClient() {
 
   return (
     <form className="form" onSubmit={understandCase}>
-      <div className="eyebrow">Step 1 of 2 · Describe</div>
+      <span className="eyebrow">Step 1 of 2 · Describe</span>
       <label>
         What happened?
         <textarea
@@ -151,7 +153,7 @@ export function ReportClient() {
         />
       </label>
       <label>
-        Amount reported lost (₹)
+        How much money did you lose? (₹)
         <input
           type="number"
           min="1"
@@ -168,13 +170,17 @@ export function ReportClient() {
       )}
       <div className="action-row">
         <button className="btn" disabled={busy !== null}>
-          {busy === "preview" ? "Understanding…" : "Understand my case"}
+          {busy === "preview" ? "Reading your report…" : "Continue"}
         </button>
-        <DemoEntry role="citizen" label="Enter citizen demo first" />
+        <DemoEntry
+          role="citizen"
+          label="Enter citizen demo first"
+          variant="secondary"
+        />
       </div>
-      <p className="footer-note" style={{ padding: 0, margin: 0 }}>
-        Classification is not a legal determination and does not claim that any
-        real institution was contacted.
+      <p className="footer-note review-note">
+        Nothing is sent to a bank or a police station. This prototype creates a
+        demonstration case only.
       </p>
     </form>
   );

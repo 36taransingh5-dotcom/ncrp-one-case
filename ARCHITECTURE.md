@@ -20,10 +20,12 @@ The database has `users`, `citizens`, `cases`, `incidents`, `transactions`, `fun
 
 Operator actions are domain commands—not freeform status edits. The case engine validates state transitions and command preconditions before atomically updating entities, appending a case event, writing an internal audit record and citizen notification, then publishing a case update. The citizen timeline is rendered solely from `case_events`; the money trail is rendered from `fund_movements`.
 
+`lib/domain/fund-graph.ts` turns that flat movement list into the branching account tree the citizen sees. Each movement is a slice of the reported amount that came to rest somewhere, and the transaction attached to it records the immediate sender and the receiving account — chaining those hops recovers the real structure (reported account → beneficiary → onward accounts) without a schema change. A node's displayed amount is the money resting on it plus everything that passed through it, so the tree reconciles to the reported total.
+
 The institutional-response SLA is calculated from the persisted `FREEZE_REQUEST_CREATED` timestamp and a two-hour threshold. A response event satisfies it; an overdue evaluation atomically appends `SLA_BREACHED` and `CASE_ESCALATED` once, changes ownership to the escalation desk, notifies the citizen and publishes the update.
 
 ## Security and realtime
 
-The server verifies the role from a signed, HTTP-only, same-site cookie before protected routes and mutations. Inputs are validated with Zod; uploads have MIME and size limits and are stored outside public static assets with a SHA-256 fingerprint. SSE distributes updates from server domain commands; it contains no client-side simulation timer.
+The server verifies the role from a signed, HTTP-only, same-site cookie before protected routes and mutations. Inputs are validated with Zod; uploads have MIME and size limits and are stored outside public static assets with a SHA-256 fingerprint. SSE distributes updates from server domain commands; it contains no client-side simulation timer. The citizen page reacts to an update by counting the affected totals to their new values, re-proportioning the split bar, flashing the fund-trail nodes whose status actually changed, and surfacing one notification — all driven by diffing the newly fetched case against the previous one.
 
 SQLite is intentionally self-contained for this local vertical slice. A production deployment should use PostgreSQL, private object storage, a durable pub/sub/realtime provider, and row-level authorization.

@@ -17,18 +17,37 @@ type SimpleAction =
   | "ESCALATE_CASE"
   | "RESOLVE_CASE"
   | "CLOSE_CASE";
+const actionLabels: Record<SimpleAction | "REQUEST_EVIDENCE", string> = {
+  IDENTIFY_BENEFICIARY_BANK: "Beneficiary bank identified",
+  SEND_FREEZE_REQUEST: "Freeze request sent",
+  MARK_FUNDS_MOVED: "Onward movement",
+  MARK_FUNDS_WITHDRAWN: "Withdrawal",
+  ASSIGN_CYBER_CELL: "Cyber Crime Unit assignment",
+  START_INVESTIGATION: "Investigation start",
+  REQUEST_EVIDENCE: "Document request",
+  ACCEPT_EVIDENCE: "Document acceptance",
+  START_FIR_REVIEW: "FIR review",
+  REGISTER_FIR: "FIR registration",
+  ESCALATE_CASE: "Escalation",
+  RESOLVE_CASE: "Resolution",
+  CLOSE_CASE: "Case closure",
+};
+
 const rupee = (value: unknown) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
+// Pinned to IST so server-rendered and client-rendered times agree.
 const when = (value: unknown) =>
   new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Kolkata",
   }).format(new Date(String(value)));
 
 export function OperationsClient({
@@ -46,6 +65,9 @@ export function OperationsClient({
   const [priority, setPriority] = useState("all");
   const [stage, setStage] = useState("all");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "error">(
+    "success",
+  );
   const [busy, setBusy] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
   const selected = detail.case as Row;
@@ -70,6 +92,10 @@ export function OperationsClient({
       Array.from(new Set(rows.map((row) => String(row.case_status)))).sort(),
     [rows],
   );
+  const fail = (text: string) => {
+    setMessageTone("error");
+    setMessage(text);
+  };
   const updateDetail = (next: CaseDetail, success: string) => {
     setDetail(next);
     const nextCase = next.case as Row;
@@ -80,6 +106,7 @@ export function OperationsClient({
           : row,
       ),
     );
+    setMessageTone("success");
     setMessage(success);
   };
   const selectCase = async (caseId: string) => {
@@ -93,7 +120,7 @@ export function OperationsClient({
     setBusy("");
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
-      return setMessage(data.error || "Case detail could not be loaded.");
+      return fail(data.error || "Case detail could not be loaded.");
     setDetail(data);
   };
   const secure = async () => {
@@ -108,10 +135,10 @@ export function OperationsClient({
     setBusy("");
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
-      return setMessage(data.error || "Action could not be completed.");
+      return fail(data.error || "Action could not be completed.");
     updateDetail(
       data,
-      "Recorded ₹6,700 as secured. The movement, event, audit record and citizen notification were persisted and broadcast live.",
+      "₹6,700 secured. The citizen's case updated live — no refresh needed.",
     );
   };
   const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
@@ -135,10 +162,10 @@ export function OperationsClient({
     setBusy("");
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
-      return setMessage(data.error || "Action could not be completed.");
+      return fail(data.error || "Action could not be completed.");
     updateDetail(
       data,
-      `${action.replaceAll("_", " ")} recorded. Event, audit and citizen notification updates were written.`,
+      `${actionLabels[action]} recorded. The citizen's case updated live.`,
     );
   };
   const reset = async () => {
@@ -147,9 +174,14 @@ export function OperationsClient({
     if (response.ok) location.reload();
     else {
       setBusy("");
-      setMessage("Reset failed. Please retry.");
+      fail("Reset failed. Please retry.");
     }
   };
+  const securableMovement = detail.movements.find(
+    (movement) =>
+      movement.movement_status === "tracing" &&
+      Number(movement.amount) === 6700,
+  );
   const hasOpen = detail.evidenceRequests.some(
     (request) => request.status === "open",
   );
@@ -328,6 +360,9 @@ export function OperationsClient({
                         >
                           {String(row.public_case_id)}
                         </button>
+                        {row.public_case_id === "NCRP-26-847193" && (
+                          <span className="demo-tag">Demo case</span>
+                        )}
                       </td>
                       <td>{String(row.full_name)}</td>
                       <td>{rupee(row.reported_amount)}</td>
@@ -400,28 +435,61 @@ export function OperationsClient({
           </div>
         </section>
         <aside className="aside">
+          {message && (
+            <div className={messageTone} role="status">
+              {message}
+            </div>
+          )}
+          {sessionExpired && (
+            <div className="error" role="alert">
+              Your operator session has ended.{" "}
+              <a className="rowlink" href="/">
+                Return to demo entry
+              </a>{" "}
+              to continue.
+            </div>
+          )}
           {isGolden && (
-            <div className="card">
-              <div className="label">Golden-path action</div>
-              <h2 style={{ margin: "6px 0" }}>Secure ₹6,700</h2>
-              <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                Calls the simulated bank adapter, validates the traceable
-                movement, then atomically writes the result.
+            <div className="card demo-action">
+              <div className="label">Demo action</div>
+              <h2>Secure ₹6,700</h2>
+              <p>
+                Places a hold on the ₹6,700 traced to ICICI ••1834. Validated
+                against the recorded movement, then written as one transaction.
               </p>
+              {securableMovement && (
+                <div className="demo-action-preview">
+                  <div>
+                    <span>Secured now</span>
+                    <strong>{rupee(selected.secured_amount)}</strong>
+                  </div>
+                  <span className="demo-action-arrow" aria-hidden>
+                    →
+                  </span>
+                  <div>
+                    <span>After this action</span>
+                    <strong className="stat-green">
+                      {rupee(Number(selected.secured_amount) + 6700)}
+                    </strong>
+                  </div>
+                </div>
+              )}
               <button
                 className="btn"
                 style={{ width: "100%" }}
                 onClick={secure}
-                disabled={
-                  Boolean(busy) || Number(selected.secured_amount) >= 37900
-                }
+                disabled={Boolean(busy) || !securableMovement}
               >
                 {busy === "secure"
-                  ? "Writing event…"
-                  : Number(selected.secured_amount) >= 37900
-                    ? "₹6,700 secured"
-                    : "Secure ₹6,700"}
+                  ? "Securing…"
+                  : securableMovement
+                    ? "Secure ₹6,700"
+                    : "✓ Already secured"}
               </button>
+              <p className="demo-action-note">
+                Running it twice is rejected by the case engine, not just the
+                button.
+              </p>
             </div>
           )}
           <div className="card">
@@ -473,27 +541,6 @@ export function OperationsClient({
               {String(detail.sla.status).replaceAll("_", " ")}
             </span>
           </div>
-          {message && (
-            <div
-              className={
-                message.includes("recorded") || message.startsWith("Recorded")
-                  ? "success"
-                  : "error"
-              }
-              role="status"
-            >
-              {message}
-            </div>
-          )}
-          {sessionExpired && (
-            <div className="error" role="alert">
-              Your operator session has ended.{" "}
-              <a className="rowlink" href="/">
-                Return to demo entry
-              </a>{" "}
-              to continue.
-            </div>
-          )}
         </aside>
       </main>
     </>

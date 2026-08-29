@@ -1,2 +1,120 @@
 import { DemoEntry } from "@/components/DemoEntry";
-export default function Home(){return <><div className="notice">Independent hackathon prototype — not an official government service. All identities, institutions, transactions and actions are synthetic or simulated.</div><main className="shell"><nav className="nav"><div className="brand">NCRP <span>One Case</span></div><div className="navlinks"><a href="#how">How it works</a><DemoEntry role="operator" label="Operations demo"/></div></nav><section className="hero"><div><div className="eyebrow">One report. One case. One truth.</div><h1>Report cyber fraud once. Track everything after.</h1><p>One case connects your report, fund tracing, agency handoffs, evidence, and FIR status—so you never have to coordinate the system yourself.</p><div style={{display:"flex",gap:12,marginTop:28,flexWrap:"wrap"}}><a className="btn" href="/report">Report financial fraud</a><DemoEntry role="citizen" label="Enter citizen demo"/><a className="btn secondary" href="#how">How One Case works</a></div></div><div className="card hero-card" aria-label="Example case summary"><div className="label">Your case at a glance</div><h2 style={{margin:"5px 0 22px",fontSize:24}}>NCRP-26-847193</h2><div className="metric-grid"><div className="metric-box"><div className="metric stat-green">₹31,200</div><div className="label">Secured</div></div><div className="metric-box"><div className="metric stat-amber">₹12,000</div><div className="label">Tracing</div></div><div className="metric-box"><div className="metric stat-red">₹5,300</div><div className="label">Unrecovered</div></div></div><p style={{fontSize:13,marginBottom:0}}>A persistent case gives you a clear view of what happened, what the system is doing, and who owns the next action.</p></div></section><section id="how" className="card section" style={{marginBottom:40}}><div className="eyebrow">Designed for calm and clarity</div><h2 style={{fontSize:28,margin:"8px 0"}}>Government coordination stays invisible. Progress stays visible.</h2><div className="metric-grid"><div><strong>Report once</strong><p>Tell the story in everyday language and create one persistent case.</p></div><div><strong>See the money</strong><p>Follow the fund trail and distinguish secured, tracing and unrecovered amounts.</p></div><div><strong>Know what happens next</strong><p>See the present owner, requested evidence, agency handoffs and FIR state.</p></div></div></section><div className="footer-note">This demonstration does not file real complaints, contact institutions, or freeze funds. It is an independent prototype for Build What Moves India.</div></main></>}
+
+const steps = [
+  {
+    title: "Report once",
+    body: "Describe what happened in your own words. That becomes one case, not a form you repeat at every counter.",
+  },
+  {
+    title: "The money is chased first",
+    body: "Banks are asked to hold what can still be held, and every rupee is tracked as secured, being traced, or gone.",
+  },
+  {
+    title: "Agencies hand over, not you",
+    body: "Cyber cells, police and banks pick the case up from each other. You always see who owns the next action.",
+  },
+];
+
+export default function Home() {
+  return (
+    <>
+      <div className="notice">
+        Independent hackathon prototype — not an official government service.
+        All identities, institutions, transactions and actions are synthetic.
+      </div>
+      <main className="shell">
+        <nav className="nav">
+          <div className="brand">
+            NCRP <span>One Case</span>
+          </div>
+          <div className="navlinks">
+            <a href="#how">How it works</a>
+            <DemoEntry role="operator" label="Enter operations demo" />
+          </div>
+        </nav>
+
+        <section className="hero">
+          <div>
+            <span className="eyebrow">
+              Report once. Government coordinates the rest.
+            </span>
+            <h1>You report cyber fraud once. The system does the running.</h1>
+            <p>
+              Today a victim repeats their story to a portal, a bank and a
+              police station, and never learns where the money went. One Case
+              replaces that with a single case that tracks the money, the
+              agencies and the next action — in the open.
+            </p>
+            <div className="hero-actions">
+              <DemoEntry role="citizen" label="Enter citizen demo" />
+              <DemoEntry role="operator" label="Enter operations demo" />
+              <a className="btn ghost" href="/report">
+                Start a new report
+              </a>
+            </div>
+            <p className="hero-hint">
+              Both demos open instantly. No sign-up, no data collected.
+            </p>
+          </div>
+
+          <div className="card hero-card" aria-label="Example case summary">
+            <span className="label">A case in progress</span>
+            <h2>NCRP-26-847193</h2>
+            <div className="hero-amount">
+              <span className="label">Reported stolen</span>
+              <strong>₹48,500</strong>
+            </div>
+            <div className="hero-bar" aria-hidden>
+              <span className="secured" style={{ width: "64.3%" }} />
+              <span className="tracing" style={{ width: "24.7%" }} />
+              <span className="unrecovered" style={{ width: "11%" }} />
+            </div>
+            <dl className="hero-split">
+              <div>
+                <dt>Secured</dt>
+                <dd className="stat-green">₹31,200</dd>
+              </div>
+              <div>
+                <dt>Being traced</dt>
+                <dd className="stat-amber">₹12,000</dd>
+              </div>
+              <div>
+                <dt>Unrecovered</dt>
+                <dd className="stat-red">₹5,300</dd>
+              </div>
+            </dl>
+            <p className="hero-owner">
+              <strong>Waiting for HDFC Bank</strong>
+              Nothing needed from the citizen right now.
+            </p>
+          </div>
+        </section>
+
+        <section id="how" className="card section how-section">
+          <span className="eyebrow">How One Case works</span>
+          <h2>
+            Coordination is the government&rsquo;s job, not the victim&rsquo;s.
+          </h2>
+          <div className="how-grid">
+            {steps.map((step, index) => (
+              <div className="how-step" key={step.title}>
+                <span className="how-index">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <strong>{step.title}</strong>
+                <p>{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <p className="footer-note">
+          Built for Build What Moves India. This prototype does not file
+          complaints, contact banks or police, freeze money, or register an FIR.
+          Bank, police and reporting integrations are simulated behind
+          replaceable interfaces.
+        </p>
+      </main>
+    </>
+  );
+}

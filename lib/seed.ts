@@ -21,8 +21,16 @@ function clearDemoUploads() {
       throw error;
   }
 }
-const now = "2026-08-29T19:18:00.000Z",
-  id = (x: string) => x;
+/**
+ * The golden case is anchored to the moment it is seeded rather than to a fixed
+ * calendar date, so elapsed times, SLA deadlines and the timeline stay truthful
+ * whenever the demo is reset. `ago(minutes)` returns a timestamp that many
+ * minutes before the seed instant.
+ */
+let seededAt = Date.now();
+const ago = (minutes: number) =>
+  new Date(seededAt - minutes * 60_000).toISOString();
+let now = ago(0);
 const event = (
   caseId: string,
   type: string,
@@ -56,6 +64,8 @@ export function seedDemo(reset = false) {
   }
   const exists = db.prepare("SELECT id FROM cases LIMIT 1").get();
   if (exists) return;
+  seededAt = Date.now();
+  now = ago(0);
   const users = [
     ["user-asha", "citizen@demo.onecase.in", "Asha Mehta", "citizen"],
     ["user-priya", "operator@demo.onecase.in", "Priya Nair", "operator"],
@@ -177,8 +187,8 @@ export function seedDemo(reset = false) {
       5300,
       "bank",
       "HDFC Bank — fraud response team",
-      "FUNDS TRACING",
-      "2026-08-29T18:42:00.000Z",
+      "PARTIALLY SECURED",
+      ago(93),
       now,
       null,
       now,
@@ -258,8 +268,8 @@ export function seedDemo(reset = false) {
     "Bank impersonation + malicious APK",
     "SBI (simulated)",
     "UPI / bank transfer",
-    "2026-08-29T17:42:00.000Z",
-    "2026-08-29T18:42:00.000Z",
+    ago(138),
+    ago(93),
     "Bengaluru",
     0.92,
     now,
@@ -293,7 +303,7 @@ export function seedDemo(reset = false) {
       48500,
       "upi",
       "identified",
-      "2026-08-29T17:42:00.000Z",
+      ago(138),
       "HDFC ••9281",
       "SBI ••4408",
       "{}",
@@ -309,7 +319,7 @@ export function seedDemo(reset = false) {
       31200,
       "transfer",
       "secured",
-      "2026-08-29T17:43:00.000Z",
+      ago(137),
       "HDFC ••9281",
       "SBI ••4408",
       "{}",
@@ -325,7 +335,7 @@ export function seedDemo(reset = false) {
       6700,
       "transfer",
       "tracing",
-      "2026-08-29T17:44:00.000Z",
+      ago(136),
       "ICICI ••1834",
       "HDFC ••9281",
       "{}",
@@ -341,7 +351,7 @@ export function seedDemo(reset = false) {
       5300,
       "transfer",
       "tracing",
-      "2026-08-29T17:44:00.000Z",
+      ago(136),
       "HDFC ••9281",
       "SBI ••4408",
       "{}",
@@ -357,7 +367,7 @@ export function seedDemo(reset = false) {
       5300,
       "atm",
       "withdrawn",
-      "2026-08-29T17:48:00.000Z",
+      ago(132),
       "ATM withdrawal",
       "HDFC ••9281",
       "{}",
@@ -376,8 +386,8 @@ export function seedDemo(reset = false) {
       "tx-hdfc",
       31200,
       "secured",
-      "2026-08-29T18:52:00.000Z",
-      now,
+      ago(83),
+      ago(83),
     ],
     [
       "mv-two",
@@ -386,8 +396,8 @@ export function seedDemo(reset = false) {
       "tx-icici",
       6700,
       "tracing",
-      "2026-08-29T18:53:00.000Z",
-      now,
+      ago(81),
+      ago(81),
     ],
     [
       "mv-three",
@@ -396,8 +406,8 @@ export function seedDemo(reset = false) {
       "tx-trace",
       5300,
       "tracing",
-      "2026-08-29T18:54:00.000Z",
-      now,
+      ago(80),
+      ago(80),
     ],
     [
       "mv-four",
@@ -406,62 +416,77 @@ export function seedDemo(reset = false) {
       "tx-atm",
       5300,
       "unrecovered",
-      "2026-08-29T18:55:00.000Z",
-      now,
+      ago(80),
+      ago(80),
     ],
   ];
   for (const m of mv)
     db.prepare("INSERT INTO fund_movements VALUES(?,?,?,?,?,?,?,?)").run(...m);
+  /**
+   * The golden timeline ends on a still-open freeze request: HDFC answered the
+   * first request with a partial recovery, and the remaining traceable ₹12,000
+   * is what the beneficiary bank still owes a response on. The SLA snapshot is
+   * read from the most recent freeze request, so this is what puts the case in
+   * a truthful "waiting for HDFC Bank" state with 42 minutes left on the clock.
+   */
   const events: [string, string, string, string | null][] = [
-    ["CASE_CREATED", "Complaint received", "2026-08-29T18:42:00.000Z", null],
+    ["CASE_CREATED", "Complaint received", ago(93), null],
     [
       "INCIDENT_CLASSIFIED",
-      "Your report was structured for financial intervention",
-      "2026-08-29T18:43:00.000Z",
+      "Report structured for financial intervention",
+      ago(92),
       null,
     ],
     [
       "TRANSACTION_IDENTIFIED",
-      "Transaction identified from your supplied details",
-      "2026-08-29T18:44:00.000Z",
+      "Transaction identified from the reported details",
+      ago(91),
       "inst-sbi",
     ],
-    [
-      "SENDER_BANK_NOTIFIED",
-      "Sender bank notified through simulated integration",
-      "2026-08-29T18:45:00.000Z",
-      "inst-sbi",
-    ],
+    ["SENDER_BANK_NOTIFIED", "Sender bank notified", ago(90), "inst-sbi"],
     [
       "BENEFICIARY_BANK_IDENTIFIED",
       "Beneficiary bank identified",
-      "2026-08-29T18:46:00.000Z",
+      ago(89),
       "inst-hdfc",
     ],
     [
       "FREEZE_REQUEST_CREATED",
       "Freeze request sent to beneficiary bank",
-      "2026-08-29T18:47:00.000Z",
+      ago(88),
       "inst-hdfc",
     ],
     [
       "FUNDS_PARTIALLY_SECURED",
       "₹31,200 secured in primary beneficiary account",
-      "2026-08-29T18:52:00.000Z",
+      ago(83),
+      "inst-hdfc",
+    ],
+    [
+      "FUNDS_MOVED",
+      "₹6,700 traced onward to a second account",
+      ago(81),
+      "inst-icici",
+    ],
+    [
+      "FUNDS_WITHDRAWN",
+      "₹5,300 withdrawn before the hold took effect",
+      ago(80),
+      "inst-hdfc",
+    ],
+    [
+      "FREEZE_REQUEST_CREATED",
+      "Freeze request sent for the remaining ₹12,000",
+      ago(78),
       "inst-hdfc",
     ],
     [
       "CYBER_CELL_ASSIGNED",
       "Bengaluru Cyber Crime Unit assigned",
-      "2026-08-29T19:04:00.000Z",
+      ago(60),
       "inst-cyber",
     ],
-    [
-      "FIR_REVIEW_STARTED",
-      "FIR review started",
-      "2026-08-29T19:18:00.000Z",
-      "inst-police",
-    ],
+    ["FIR_REVIEW_STARTED", "FIR review started", ago(42), "inst-police"],
   ];
   for (const e of events) event("case-golden", e[0], e[1], e[2], e[3]);
   db.prepare("INSERT INTO agency_assignments VALUES(?,?,?,?,?,?,?,?,?)").run(
@@ -470,8 +495,8 @@ export function seedDemo(reset = false) {
     "inst-cyber",
     "investigation",
     "acknowledged",
-    "2026-08-29T19:04:00.000Z",
-    "2026-08-29T19:05:00.000Z",
+    ago(60),
+    ago(59),
     null,
     now,
   );
@@ -482,22 +507,9 @@ export function seedDemo(reset = false) {
     null,
     "Bengaluru Cyber Crime Police Station (simulated)",
     null,
-    "Review is in progress; no FIR outcome has been determined.",
+    "Police are reviewing your case. No decision has been made yet.",
     now,
     now,
-  );
-  db.prepare("INSERT INTO evidence_requests VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
-    "req-golden",
-    "case-golden",
-    "Bengaluru Cyber Crime Unit",
-    "Bank statement needed",
-    "Please upload a statement covering 28–29 August.",
-    "bank_statement",
-    "2026-08-31T17:00:00.000Z",
-    "open",
-    null,
-    now,
-    null,
   );
   db.prepare("INSERT INTO notifications VALUES(?,?,?,?,?,?,?,?)").run(
     "note-golden",
@@ -505,7 +517,7 @@ export function seedDemo(reset = false) {
     "case-golden",
     "case_update",
     "Freeze request sent",
-    "A simulated freeze request is awaiting acknowledgement from the beneficiary bank.",
+    "The beneficiary bank has been asked to hold the money that is still being traced.",
     null,
     now,
   );

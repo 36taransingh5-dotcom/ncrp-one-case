@@ -8,12 +8,13 @@
 
 - Signed, HTTP-only demo sessions with citizen and operator roles.
 - Persistent SQLite entities for cases, incidents, funds, evidence, requests, assignments, FIR records, events, notifications and audit logs.
-- Event-derived citizen timeline and money totals that reconcile to the reported loss.
+- Citizen timeline and money totals derived from recorded events, reconciling exactly to the reported loss.
 - Deterministic seeded case `NCRP-26-847193` and three additional queue cases.
 - Operator-triggered simulated additional ₹6,700 hold, with transaction-state validation, event, audit record, notification and server-sent-event update.
 - Citizen evidence upload with persisted metadata and SHA-256 fingerprint.
 - Bounded investigation, evidence, FIR, escalation, resolution and closure actions with invalid-transition protection.
-- Data-driven fund trail, citizen notification inbox and internal operator audit history.
+- Branching fund trail derived from recorded movements and account hops, rendered without a graph library and degrading to an indented rail on small screens.
+- Citizen notification inbox and internal operator audit history.
 - Persisted timestamp-based SLA evaluation with automatic breach and escalation events.
 - Authenticated evidence retrieval, downloadable synthetic case summaries and security headers.
 - Two-step citizen intake: review an explainable structured interpretation before explicitly creating a case.
