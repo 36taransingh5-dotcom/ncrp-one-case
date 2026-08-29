@@ -1,12 +1,102 @@
-.trail-network{display:grid;grid-template-columns:170px 34px 1fr;gap:14px;align-items:center;min-width:620px;overflow:auto;padding:8px}
-.movement-grid{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:10px}
-.trail-network .node{width:100%}
-.node.moved{border-color:#f0cc8c;background:#fff9e9}
-.node.withdrawn{border-color:#efb5b0;background:#fff5f4}
-.empty{padding:16px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:13px}
-.action-stack{display:grid;gap:8px;margin-top:12px}
-.action-stack .btn{text-align:left}
-.notification{padding:11px 0;border-bottom:1px solid var(--line)}
-.notification:last-child{border-bottom:0}
-.notification p{font-size:12px;color:var(--muted);margin:3px 0}
-.btn:disabled{cursor:not-allowed;opacity:.5}
+.trail-network {
+  display: grid;
+  grid-template-columns: 170px 34px 1fr;
+  gap: 14px;
+  align-items: center;
+  min-width: 620px;
+  overflow: auto;
+  padding: 8px;
+}
+.movement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 10px;
+}
+.trail-network .node {
+  width: 100%;
+}
+.node.moved {
+  border-color: #f0cc8c;
+  background: #fff9e9;
+}
+.node.withdrawn {
+  border-color: #efb5b0;
+  background: #fff5f4;
+}
+.empty {
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.action-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.action-stack .btn {
+  text-align: left;
+}
+.notification {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.notification:last-child {
+  border-bottom: 0;
+}
+.notification p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 3px 0;
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.queue-filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.25fr;
+  gap: 10px;
+  margin: 18px 0;
+}
+.queue-filters label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.queue-filters input,
+.queue-filters select {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border: 1px solid #b6c7d7;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+}
+.table tbody tr {
+  cursor: pointer;
+}
+.table tbody tr:hover td {
+  background: #f4f9fd;
+}
+.table .selected-row td {
+  background: #eaf4fb;
+}
+.row-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+}
+.row-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .queue-filters {
+    grid-template-columns: 1fr;
+  }
+}

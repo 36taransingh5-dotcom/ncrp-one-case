@@ -1,21 +1,9 @@
 "use client";
-import { useState } from "react";
+
+import { useMemo, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 
 type Row = Record<string, unknown>;
-const rupee = (n: unknown) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(n || 0));
-const when = (v: unknown) =>
-  new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(String(v)));
 type SimpleAction =
   | "START_INVESTIGATION"
   | "ACCEPT_EVIDENCE"
@@ -24,6 +12,19 @@ type SimpleAction =
   | "ESCALATE_CASE"
   | "RESOLVE_CASE"
   | "CLOSE_CASE";
+const rupee = (value: unknown) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+const when = (value: unknown) =>
+  new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(String(value)));
 
 export function OperationsClient({
   cases,
@@ -34,21 +35,59 @@ export function OperationsClient({
   initialDetail: CaseDetail;
   operatorName: string;
 }) {
-  const [rows, setRows] = useState(cases),
-    [detail, setDetail] = useState(initialDetail),
-    [message, setMessage] = useState(""),
-    [busy, setBusy] = useState("");
-  const golden = detail.case as Row,
-    fir = detail.fir as Row;
-  const acceptResult = (next: CaseDetail, success: string) => {
+  const [rows, setRows] = useState(cases);
+  const [detail, setDetail] = useState(initialDetail);
+  const [query, setQuery] = useState("");
+  const [priority, setPriority] = useState("all");
+  const [stage, setStage] = useState("all");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState("");
+  const selected = detail.case as Row;
+  const fir = detail.fir as Row;
+  const selectedCaseId = String(selected.public_case_id);
+  const isGolden = selectedCaseId === "NCRP-26-847193";
+  const visibleRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        const haystack =
+          `${row.public_case_id} ${row.full_name} ${row.case_type} ${row.current_owner_name}`.toLowerCase();
+        return (
+          haystack.includes(query.toLowerCase()) &&
+          (priority === "all" || row.priority === priority) &&
+          (stage === "all" || row.case_status === stage)
+        );
+      }),
+    [rows, query, priority, stage],
+  );
+  const stages = useMemo(
+    () =>
+      Array.from(new Set(rows.map((row) => String(row.case_status)))).sort(),
+    [rows],
+  );
+  const updateDetail = (next: CaseDetail, success: string) => {
     setDetail(next);
-    const c = next.case as Row;
-    setRows(
-      rows.map((row) =>
-        row.public_case_id === c.public_case_id ? { ...row, ...c } : row,
+    const nextCase = next.case as Row;
+    setRows((current) =>
+      current.map((row) =>
+        row.public_case_id === nextCase.public_case_id
+          ? { ...row, ...nextCase }
+          : row,
       ),
     );
     setMessage(success);
+  };
+  const selectCase = async (caseId: string) => {
+    if (caseId === selectedCaseId) return;
+    setBusy("select");
+    setMessage("");
+    const response = await fetch(`/api/operations/cases/${caseId}`, {
+      cache: "no-store",
+    });
+    const data = await response.json();
+    setBusy("");
+    if (!response.ok)
+      return setMessage(data.error || "Case detail could not be loaded.");
+    setDetail(data);
   };
   const secure = async () => {
     setBusy("secure");
@@ -56,13 +95,13 @@ export function OperationsClient({
     const response = await fetch("/api/operations/secure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId: "NCRP-26-847193", amount: 6700 }),
+      body: JSON.stringify({ caseId: selectedCaseId, amount: 6700 }),
     });
     const data = await response.json();
     setBusy("");
     if (!response.ok)
       return setMessage(data.error || "Action could not be completed.");
-    acceptResult(
+    updateDetail(
       data,
       "Recorded ₹6,700 as secured. The movement, event, audit record and citizen notification were persisted and broadcast live.",
     );
@@ -70,7 +109,7 @@ export function OperationsClient({
   const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
     setBusy(action);
     setMessage("");
-    const payload =
+    const actionPayload =
       action === "REQUEST_EVIDENCE"
         ? {
             type: action,
@@ -82,13 +121,13 @@ export function OperationsClient({
     const response = await fetch("/api/operations/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId: "NCRP-26-847193", action: payload }),
+      body: JSON.stringify({ caseId: selectedCaseId, action: actionPayload }),
     });
     const data = await response.json();
     setBusy("");
     if (!response.ok)
       return setMessage(data.error || "Action could not be completed.");
-    acceptResult(
+    updateDetail(
       data,
       `${action.replaceAll("_", " ")} recorded. Event, audit and citizen notification updates were written.`,
     );
@@ -103,17 +142,17 @@ export function OperationsClient({
     }
   };
   const hasOpen = detail.evidenceRequests.some(
-      (request) => request.status === "open",
-    ),
-    hasSubmitted = detail.evidenceRequests.some(
-      (request) => request.status === "submitted",
-    );
+    (request) => request.status === "open",
+  );
+  const hasSubmitted = detail.evidenceRequests.some(
+    (request) => request.status === "submitted",
+  );
   const actionButtons: [string, SimpleAction | "REQUEST_EVIDENCE", boolean][] =
     [
       [
         "Start investigation",
         "START_INVESTIGATION",
-        String(golden.case_status) !== "PARTIALLY_SECURED",
+        String(selected.case_status) !== "PARTIALLY_SECURED",
       ],
       ["Request evidence", "REQUEST_EVIDENCE", hasOpen],
       ["Accept submitted evidence", "ACCEPT_EVIDENCE", !hasSubmitted],
@@ -128,8 +167,12 @@ export function OperationsClient({
         "ESCALATE_CASE",
         detail.events.some((event) => event.event_type === "CASE_ESCALATED"),
       ],
-      ["Move to resolution", "RESOLVE_CASE", Number(golden.tracing_amount) > 0],
-      ["Close case", "CLOSE_CASE", golden.case_status !== "RESOLUTION"],
+      [
+        "Move to resolution",
+        "RESOLVE_CASE",
+        Number(selected.tracing_amount) > 0,
+      ],
+      ["Close case", "CLOSE_CASE", selected.case_status !== "RESOLUTION"],
     ];
   return (
     <>
@@ -145,14 +188,14 @@ export function OperationsClient({
             </div>
             <h1>Case coordination queue</h1>
             <div>
-              Every change below is a validated domain action, never a direct
-              status edit.
+              Every change is a validated domain action, never a direct status
+              edit.
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <a
               className="btn secondary"
-              href="/case/NCRP-26-847193"
+              href={`/case/${selectedCaseId}`}
               target="_blank"
             >
               Open citizen view
@@ -175,7 +218,45 @@ export function OperationsClient({
                 <div className="label">Prioritized cases</div>
                 <h2 style={{ margin: "4px 0 0" }}>Live case queue</h2>
               </div>
-              <span className="badge">{rows.length} persisted cases</span>
+              <span className="badge">
+                {visibleRows.length} of {rows.length} cases
+              </span>
+            </div>
+            <div className="queue-filters">
+              <label>
+                Search
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Case ID, citizen, owner"
+                />
+              </label>
+              <label>
+                Priority
+                <select
+                  value={priority}
+                  onChange={(event) => setPriority(event.target.value)}
+                >
+                  <option value="all">All priorities</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                </select>
+              </label>
+              <label>
+                Stage
+                <select
+                  value={stage}
+                  onChange={(event) => setStage(event.target.value)}
+                >
+                  <option value="all">All stages</option>
+                  {stages.map((value) => (
+                    <option key={value} value={value}>
+                      {value.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="tablewrap">
               <table className="table">
@@ -190,12 +271,23 @@ export function OperationsClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
-                    <tr key={String(row.id)}>
+                  {visibleRows.map((row) => (
+                    <tr
+                      className={
+                        row.public_case_id === selectedCaseId
+                          ? "selected-row"
+                          : ""
+                      }
+                      key={String(row.id)}
+                      onClick={() => selectCase(String(row.public_case_id))}
+                    >
                       <td>
-                        <span className="rowlink">
+                        <button
+                          className="rowlink row-button"
+                          disabled={busy === "select"}
+                        >
                           {String(row.public_case_id)}
-                        </span>
+                        </button>
                       </td>
                       <td>{String(row.full_name)}</td>
                       <td>{rupee(row.reported_amount)}</td>
@@ -208,34 +300,39 @@ export function OperationsClient({
                   ))}
                 </tbody>
               </table>
+              {!visibleRows.length && (
+                <div className="empty">No cases match these filters.</div>
+              )}
             </div>
           </div>
           <div className="card section">
             <div className="label">Selected case</div>
             <h2>
-              NCRP-26-847193 · {String(golden.current_stage).toLowerCase()}
+              {selectedCaseId} · {String(selected.current_stage).toLowerCase()}
             </h2>
             <div className="money">
               <div className="metric-box">
                 <div className="metric stat-green">
-                  {rupee(golden.secured_amount)}
+                  {rupee(selected.secured_amount)}
                 </div>
                 <div className="label">Secured</div>
               </div>
               <div className="metric-box">
                 <div className="metric stat-amber">
-                  {rupee(golden.tracing_amount)}
+                  {rupee(selected.tracing_amount)}
                 </div>
                 <div className="label">Tracing</div>
               </div>
               <div className="metric-box">
                 <div className="metric stat-red">
-                  {rupee(golden.unrecovered_amount)}
+                  {rupee(selected.unrecovered_amount)}
                 </div>
                 <div className="label">Unrecovered</div>
               </div>
               <div className="metric-box">
-                <div className="owner">{String(golden.current_owner_name)}</div>
+                <div className="owner">
+                  {String(selected.current_owner_name)}
+                </div>
                 <div className="label">Current owner</div>
               </div>
             </div>
@@ -263,26 +360,30 @@ export function OperationsClient({
           </div>
         </section>
         <aside className="aside">
-          <div className="card">
-            <div className="label">Golden-path action</div>
-            <h2 style={{ margin: "6px 0" }}>Secure ₹6,700</h2>
-            <p style={{ fontSize: 13, color: "var(--muted)" }}>
-              Calls the simulated bank adapter, validates the traceable
-              movement, then atomically writes the result.
-            </p>
-            <button
-              className="btn"
-              style={{ width: "100%" }}
-              onClick={secure}
-              disabled={Boolean(busy) || Number(golden.secured_amount) >= 37900}
-            >
-              {busy === "secure"
-                ? "Writing event…"
-                : Number(golden.secured_amount) >= 37900
-                  ? "₹6,700 secured"
-                  : "Secure ₹6,700"}
-            </button>
-          </div>
+          {isGolden && (
+            <div className="card">
+              <div className="label">Golden-path action</div>
+              <h2 style={{ margin: "6px 0" }}>Secure ₹6,700</h2>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                Calls the simulated bank adapter, validates the traceable
+                movement, then atomically writes the result.
+              </p>
+              <button
+                className="btn"
+                style={{ width: "100%" }}
+                onClick={secure}
+                disabled={
+                  Boolean(busy) || Number(selected.secured_amount) >= 37900
+                }
+              >
+                {busy === "secure"
+                  ? "Writing event…"
+                  : Number(selected.secured_amount) >= 37900
+                    ? "₹6,700 secured"
+                    : "Secure ₹6,700"}
+              </button>
+            </div>
+          )}
           <div className="card">
             <div className="label">Case actions</div>
             <div className="action-stack">
