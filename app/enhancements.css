@@ -348,11 +348,31 @@
   border-left-color: #e8705f;
 }
 .money-split dt {
+  display: flex;
+  gap: 6px;
+  align-items: center;
   color: #a9c7de;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+/* Echoes the matching segment colour in the bar above, so each figure below
+   reads as that segment's value rather than an unrelated statistic. */
+.split-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.split.secured .split-dot {
+  background: #35c184;
+}
+.split.tracing .split-dot {
+  background: #f0b64a;
+}
+.split.unrecovered .split-dot {
+  background: #e8705f;
 }
 .money-split dd {
   margin: 3px 0 2px;
@@ -503,99 +523,45 @@
   text-transform: uppercase;
 }
 
+.trail-frame {
+  position: relative;
+}
 .money-trail {
-  --rail: #b9cee0;
-  padding: 6px 0 4px;
+  overflow-x: auto;
+  padding: 6px 2px 10px;
 }
-.flow-node {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  min-width: 0;
+.flow-svg {
+  display: block;
 }
-.flow-children {
-  display: flex;
-  gap: 0;
-  align-items: flex-start;
-  position: relative;
-  margin-top: 30px;
+.trail-scroll-hint {
+  display: none;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
 }
-/* Stem down from the parent card to the branch rail. */
-.flow-children::before {
-  content: "";
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  width: 2px;
-  height: 30px;
-  background: var(--rail);
+.flow-edge-pill {
+  fill: #fff;
+  stroke: #dbe6f0;
+  stroke-width: 1;
 }
-/* Rail spanning the centres of the outermost children. Children are equal
-   width with no gap, so 50%/n lands exactly on the first and last centres. */
-.flow-children::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: calc(50% / var(--branches, 1));
-  left: calc(50% / var(--branches, 1));
-  height: 2px;
-  background: var(--rail);
-}
-.flow-children > .flow-node {
-  flex: 1 1 0;
-  padding: 0 9px;
-}
-.flow-edge {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  height: 46px;
-  margin-bottom: 2px;
-}
-.flow-edge::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 2px;
-  height: 100%;
-  background: var(--rail);
-}
-.flow-edge::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  margin-left: -5px;
-  border-top: 7px solid var(--rail);
-  border-right: 5px solid transparent;
-  border-left: 5px solid transparent;
-}
-.flow-edge-label {
-  position: relative;
-  align-self: center;
-  max-width: 100%;
-  padding: 3px 9px;
-  border: 1px solid #dbe6f0;
-  border-radius: 999px;
-  background: #fff;
-  color: #35597a;
+.flow-edge-text {
+  fill: #35597a;
   font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-family: inherit;
 }
 .flow-card {
+  box-sizing: border-box;
   width: 100%;
-  max-width: 460px;
-  margin: 0 auto;
+  height: 100%;
   padding: 15px 16px;
   border: 1px solid var(--line);
   border-top: 4px solid #93aec5;
   border-radius: 11px;
   background: #fff;
   box-shadow: 0 3px 10px #102a4310;
+  overflow: hidden;
 }
 .flow-card.tone-secured {
   border-top-color: var(--green);
@@ -1022,57 +988,23 @@
   .money-split p {
     display: none;
   }
-  .flow-card {
-    max-width: none;
-  }
 
-  /* The branching layout becomes an indented rail rather than overflowing. */
-  .flow-children {
-    display: block;
-    margin-top: 0;
-    padding-left: 22px;
-  }
-  .flow-children::before,
-  .flow-children::after {
-    display: none;
-  }
-  .flow-children > .flow-node {
-    position: relative;
-    padding: 0;
-  }
-  .flow-children > .flow-node::before {
+  /* Below this width the diagram keeps its natural size and scrolls
+     horizontally inside .money-trail rather than being squeezed. A fixed
+     fade on the frame plus a text hint make that scrollability obvious
+     instead of reading as empty space. */
+  .trail-frame::after {
     content: "";
     position: absolute;
     top: 0;
-    bottom: 0;
-    left: -22px;
-    width: 2px;
-    background: var(--rail);
+    right: 0;
+    bottom: 10px;
+    width: 36px;
+    background: linear-gradient(to right, transparent, #fff);
+    pointer-events: none;
   }
-  .flow-children > .flow-node:last-child::before {
-    bottom: auto;
-    height: 34px;
-  }
-  .flow-edge {
-    justify-content: flex-start;
-    height: auto;
-    padding: 12px 0 12px 12px;
-  }
-  .flow-edge::before {
-    display: none;
-  }
-  .flow-edge::after {
-    top: 27px;
-    bottom: auto;
-    left: -22px;
-    margin-left: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 7px solid var(--rail);
-    border-right: 0;
-  }
-  .flow-edge-label {
-    white-space: normal;
+  .trail-scroll-hint {
+    display: block;
   }
 }
 @media (max-width: 560px) {

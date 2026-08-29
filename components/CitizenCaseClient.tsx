@@ -473,17 +473,26 @@ export function CitizenCaseClient({
 
           <dl className="money-split">
             <div className="split secured">
-              <dt>Secured</dt>
+              <dt>
+                <span className="split-dot" aria-hidden />
+                Secured
+              </dt>
               <dd>{rupee(shownSecured)}</dd>
               <p>Held in place and cannot be moved</p>
             </div>
             <div className="split tracing">
-              <dt>Being traced</dt>
+              <dt>
+                <span className="split-dot" aria-hidden />
+                Being traced
+              </dt>
               <dd>{rupee(shownTracing)}</dd>
               <p>Located and still being followed</p>
             </div>
             <div className="split unrecovered">
-              <dt>Unrecovered</dt>
+              <dt>
+                <span className="split-dot" aria-hidden />
+                Unrecovered
+              </dt>
               <dd>{rupee(shownUnrecovered)}</dd>
               <p>Taken out before it could be held</p>
             </div>
@@ -615,7 +624,12 @@ export function CitizenCaseClient({
               account below is masked.
             </p>
           </div>
-          <MoneyTrail root={flow.root} highlighted={changed} />
+          <div className="trail-frame">
+            <MoneyTrail root={flow.root} highlighted={changed} />
+          </div>
+          <p className="trail-scroll-hint" aria-hidden>
+            Swipe to see the rest of the trail →
+          </p>
           <p className="trail-foot">
             {flow.reconciled
               ? `All ${rupee(reported)} reported is accounted for above.`
