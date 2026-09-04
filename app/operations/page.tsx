@@ -3,7 +3,7 @@ import { currentSession } from "@/lib/auth";
 import { ensureDemoData } from "@/lib/demo";
 import { OperationsClient } from "@/components/OperationsClient";
 import { getCaseDetail, listOperationsCases } from "@/lib/repository";
-import { isLocalBackend } from "@/lib/supabase/config";
+import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 export const dynamic = "force-dynamic";
 export default async function Operations() {
   if (isLocalBackend()) ensureDemoData();
@@ -21,7 +21,7 @@ export default async function Operations() {
       initialDetail={detail}
       operatorName={session.displayName}
       operatorId={session.userId}
-      localDemo={isLocalBackend()}
+      localDemo={isDemoAccessEnabled()}
     />
   );
 }

@@ -1,9 +1,14 @@
 import { AuthForm } from "@/components/AuthForm";
 import { DemoEntry } from "@/components/DemoEntry";
-import { isLocalBackend, isSupabaseConfigured } from "@/lib/supabase/config";
+import {
+  isDemoAccessEnabled,
+  isLocalBackend,
+  isSupabaseConfigured,
+} from "@/lib/supabase/config";
 
 export default function AuthPage() {
   const local = isLocalBackend();
+  const demoAccess = isDemoAccessEnabled();
   return (
     <>
       <div className="notice">
@@ -22,10 +27,10 @@ export default function AuthPage() {
             administrator.
           </p>
           <AuthForm configured={!local && isSupabaseConfigured()} />
-          {local ? (
+          {demoAccess ? (
             <>
               <div className="auth-divider">
-                <span>Judging locally?</span>
+                <span>Judging the synthetic demo?</span>
               </div>
               <DemoEntry role="citizen" label="Enter synthetic citizen demo" />
             </>

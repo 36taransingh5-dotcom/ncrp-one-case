@@ -45,9 +45,16 @@ npm run build
 4. Configure the Auth site URL and add `<app-url>/auth/callback` as an allowed redirect URL.
 5. Create an operator Auth user, then run `npm run provision-operator -- operator@example.org` with admin environment variables available.
 6. Optionally set the four synthetic demo identity variables in `.env.example` and run `npm run seed:supabase`.
+   Set `NCRP_DEMO_ACCESS_ENABLED=true` only for a clearly labelled judging deployment that should expose one-click access to those two synthetic accounts. Their passwords remain server-only.
 7. Run the worker route on a recurring schedule with `Authorization: Bearer $NCRP_WORKER_SECRET`.
 
 Verify a fresh deployment with `GET /api/health`; production should return `{ "status": "ok", "backend": "supabase" }`.
+
+Run the full two-browser golden path against a deployment with:
+
+```bash
+E2E_BASE_URL=https://your-app.example npm run test:e2e
+```
 
 The service secret is server-only. A production instance never sets `NCRP_BACKEND=local`; when set to `supabase`, any attempted SQLite access fails closed.
 

@@ -21,3 +21,7 @@ export function isLocalBackend() {
   if (process.env.NODE_ENV === "production") return false;
   return !isSupabaseConfigured();
 }
+
+export function isDemoAccessEnabled() {
+  return isLocalBackend() || process.env.NCRP_DEMO_ACCESS_ENABLED === "true";
+}

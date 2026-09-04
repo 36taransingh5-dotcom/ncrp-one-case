@@ -16,6 +16,8 @@ npm run seed:supabase
 
 The script creates or reuses the two named synthetic Auth users, promotes only the operator account through the server-only admin client, upserts simulated institutions and invokes a service-role-only seed function. It replaces only `NCRP-26-847193`; arbitrary citizen-created cases are preserved.
 
+On a judging deployment, `NCRP_DEMO_ACCESS_ENABLED=true` exposes one-click sign-in backed by those two Auth users. The application selects their server-only email/password variables by role; credentials are never sent to the browser. Keep this flag disabled for ordinary production deployments.
+
 The golden case starts at ₹48,500 reported: ₹31,200 secured, ₹12,000 tracing and ₹5,300 unrecovered. Its exact ₹6,700 movement can be secured once, producing ₹37,900 secured and ₹5,300 tracing. Idempotency and movement-state checks prevent a duplicate hold.
 
 To promote a separate existing Auth user:

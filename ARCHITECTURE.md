@@ -28,6 +28,8 @@ Supabase migrations own the production schema. `create_case`, `execute_case_comm
 
 Supabase Auth owns account identity and refresh tokens. The auth trigger creates every new account as a citizen. Operator promotion requires the server-only service credential through `scripts/provision-operator.ts`; authenticated clients have permission to update only their own `display_name`.
 
+Judging deployments may explicitly enable one-click access to two seeded synthetic Auth users. The corresponding passwords remain server-only and the route verifies the persisted profile role before issuing a session. This path is disabled unless `NCRP_DEMO_ACCESS_ENABLED=true`.
+
 RLS is the primary data boundary. Citizens can select only resources linked to their own `citizens.user_id`; operators receive the read surface required for the operations queue and audit history. Route handlers also verify roles and ownership as defense in depth. The service key is confined to the worker, seed and rollback-cleanup paths.
 
 ## Evidence and realtime

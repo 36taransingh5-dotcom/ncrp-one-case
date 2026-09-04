@@ -1,6 +1,6 @@
 import { DemoEntry } from "@/components/DemoEntry";
 import { currentSession } from "@/lib/auth";
-import { isLocalBackend } from "@/lib/supabase/config";
+import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +22,7 @@ const steps = [
 export default async function Home() {
   const session = await currentSession();
   const local = isLocalBackend();
+  const demoAccess = isDemoAccessEnabled();
   const accountHref = session
     ? session.role === "operator"
       ? "/operations"
@@ -44,7 +45,7 @@ export default async function Home() {
             <a className="btn secondary" href={accountHref}>
               {session ? "Open account" : "Sign in"}
             </a>
-            {local ? (
+            {demoAccess ? (
               <DemoEntry role="operator" label="Enter operations demo" />
             ) : null}
           </div>
@@ -69,16 +70,16 @@ export default async function Home() {
               >
                 Start a new report
               </a>
-              {local ? (
+              {demoAccess ? (
                 <DemoEntry role="citizen" label="Enter citizen demo" />
               ) : null}
-              {local ? (
+              {demoAccess ? (
                 <DemoEntry role="operator" label="Enter operations demo" />
               ) : null}
             </div>
             <p className="hero-hint">
-              {local
-                ? "Synthetic demos open instantly; the production path uses real accounts."
+              {demoAccess
+                ? "Synthetic demos open instantly; citizen accounts can also use secure email sign-in."
                 : "Secure email sign-in keeps every citizen case private."}
             </p>
           </div>
