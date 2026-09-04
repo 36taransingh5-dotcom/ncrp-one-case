@@ -945,6 +945,33 @@
   content: "";
   background: var(--line);
 }
+.demo-entry-stack {
+  display: grid;
+  gap: 12px;
+}
+.demo-entry-option {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.demo-entry-option.featured {
+  border-color: #8fc4aa;
+  background: #f3fbf7;
+}
+.demo-entry-option p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+@media (min-width: 620px) {
+  .demo-entry-option {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
 .citizen-case-list {
   display: grid;
   gap: 12px;

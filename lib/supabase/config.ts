@@ -25,3 +25,11 @@ export function isLocalBackend() {
 export function isDemoAccessEnabled() {
   return isLocalBackend() || process.env.NCRP_DEMO_ACCESS_ENABLED === "true";
 }
+
+export function isShowcaseDemoConfigured() {
+  return Boolean(
+    !isLocalBackend() &&
+    process.env.NCRP_SHOWCASE_CITIZEN_EMAIL &&
+    process.env.NCRP_SHOWCASE_CITIZEN_PASSWORD,
+  );
+}

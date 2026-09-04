@@ -9,6 +9,7 @@
     "start": "node scripts/start.mjs",
     "seed": "tsx scripts/seed.ts",
     "seed:supabase": "tsx scripts/seed-supabase.ts",
+    "seed:showcase": "tsx scripts/seed-showcase-supabase.ts",
     "provision-operator": "tsx scripts/provision-operator.ts",
     "reset-demo": "tsx scripts/seed.ts --reset",
     "typecheck": "tsc --noEmit",

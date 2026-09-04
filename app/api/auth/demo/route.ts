@@ -14,20 +14,36 @@ export async function POST(request: Request) {
         { error: "Demo-role sessions are disabled in production." },
         { status: 404 },
       );
-    const { role } = z
-      .object({ role: z.enum(["citizen", "operator"]) })
+    const { role, demo } = z
+      .object({
+        role: z.enum(["citizen", "operator"]),
+        demo: z.enum(["golden", "showcase"]).default("golden"),
+      })
       .parse(await request.json());
+    if (demo === "showcase" && (role !== "citizen" || isLocalBackend()))
+      return NextResponse.json(
+        { error: "The showcase citizen is unavailable in this environment." },
+        { status: 404 },
+      );
     const redirect =
-      role === "operator" ? "/operations" : "/case/NCRP-26-847193";
+      role === "operator"
+        ? "/operations"
+        : demo === "showcase"
+          ? "/case/NCRP-26-926184"
+          : "/case/NCRP-26-847193";
     if (!isLocalBackend()) {
       const email =
         role === "operator"
           ? process.env.NCRP_DEMO_OPERATOR_EMAIL
-          : process.env.NCRP_DEMO_CITIZEN_EMAIL;
+          : demo === "showcase"
+            ? process.env.NCRP_SHOWCASE_CITIZEN_EMAIL
+            : process.env.NCRP_DEMO_CITIZEN_EMAIL;
       const password =
         role === "operator"
           ? process.env.NCRP_DEMO_OPERATOR_PASSWORD
-          : process.env.NCRP_DEMO_CITIZEN_PASSWORD;
+          : demo === "showcase"
+            ? process.env.NCRP_SHOWCASE_CITIZEN_PASSWORD
+            : process.env.NCRP_DEMO_CITIZEN_PASSWORD;
       if (!email || !password)
         throw new Error("Demo identity is not configured.");
       const supabase = await createSupabaseServerClient();
@@ -48,6 +64,7 @@ export async function POST(request: Request) {
       logEvent("auth.demo_session_issued", {
         actorId: data.user.id,
         role,
+        demo,
       });
       return NextResponse.json({ ok: true, redirect });
     }

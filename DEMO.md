@@ -14,4 +14,6 @@
 
 Use `NCRP-26-847193` when time is limited. It begins with ₹31,200 secured, ₹12,000 tracing and ₹5,300 unrecovered. Select **Secure ₹6,700** to reach ₹37,900 secured and ₹5,300 tracing. Reset is available in the explicit local demo and in a Supabase judging deployment with synthetic demo access enabled.
 
+For a mentor walkthrough focused on the citizen experience, choose **Enter showcase citizen** on the account page. Synthetic case `NCRP-26-926184` opens after submission with a reconciled money trail, a met bank-response SLA, bank and police handoffs, accepted evidence, one open evidence request, notifications and a simulated registered FIR. The golden-path citizen remains separate so the ₹6,700 realtime operator demonstration still starts from its known state.
+
 Close with: **“One report. One case. Government coordinates the rest.”** Then reiterate that the product is an independent prototype and every external action shown is simulated.

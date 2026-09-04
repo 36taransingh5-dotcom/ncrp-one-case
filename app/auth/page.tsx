@@ -3,12 +3,14 @@ import { DemoEntry } from "@/components/DemoEntry";
 import {
   isDemoAccessEnabled,
   isLocalBackend,
+  isShowcaseDemoConfigured,
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
 
 export default function AuthPage() {
   const local = isLocalBackend();
   const demoAccess = isDemoAccessEnabled();
+  const showcaseDemo = isShowcaseDemoConfigured();
   return (
     <>
       <div className="notice">
@@ -32,7 +34,39 @@ export default function AuthPage() {
               <div className="auth-divider">
                 <span>Judging the synthetic demo?</span>
               </div>
-              <DemoEntry role="citizen" label="Enter synthetic citizen demo" />
+              <div className="demo-entry-stack">
+                {showcaseDemo ? (
+                  <div className="demo-entry-option featured">
+                    <div>
+                      <strong>Mentor showcase</strong>
+                      <p>
+                        Open a presentation-ready citizen account after a
+                        report, with the money trail, evidence, handoffs and FIR
+                        progress already populated.
+                      </p>
+                    </div>
+                    <DemoEntry
+                      role="citizen"
+                      demo="showcase"
+                      label="Enter showcase citizen"
+                    />
+                  </div>
+                ) : null}
+                <div className="demo-entry-option">
+                  <div>
+                    <strong>Live operator-action demo</strong>
+                    <p>
+                      Open the seeded case that updates in real time when the
+                      operator secures another ₹6,700.
+                    </p>
+                  </div>
+                  <DemoEntry
+                    role="citizen"
+                    label="Enter golden-path citizen"
+                    variant={showcaseDemo ? "secondary" : "primary"}
+                  />
+                </div>
+              </div>
             </>
           ) : null}
         </section>
