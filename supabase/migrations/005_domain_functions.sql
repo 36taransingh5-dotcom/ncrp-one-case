@@ -182,7 +182,7 @@ begin
   select c.user_id,v_case.id,lower(v_event_type),v_label,'A new update has been recorded in your case.' from public.citizens c where c.id=v_case.citizen_id;
   select entry_hash into v_previous_hash from public.audit_logs where resource_id=v_case.id order by created_at desc limit 1;
   v_audit_time := now();
-  v_audit_hash := encode(digest(coalesce(v_previous_hash,'') || p_action || auth.uid()::text || v_case.id::text || v_audit_time::text || p_payload::text || p_idempotency_key,'sha256'),'hex');
+  v_audit_hash := encode(extensions.digest(coalesce(v_previous_hash,'') || p_action || auth.uid()::text || v_case.id::text || v_audit_time::text || p_payload::text || p_idempotency_key,'sha256'),'hex');
   insert into public.audit_logs(actor_user_id,action,resource_type,resource_id,metadata_json,previous_hash,entry_hash,created_at)
   values(auth.uid(),p_action,'case',v_case.id,p_payload,v_previous_hash,v_audit_hash,v_audit_time);
   v_result := jsonb_build_object('case_id',v_case.id,'public_case_id',v_case.public_case_id,'version',v_case.version+1,'event_type',v_event_type);
