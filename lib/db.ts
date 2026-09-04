@@ -2,22 +2,39 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 
-// Vercel's deployed filesystem is read-only outside /tmp, which is itself
-// wiped between cold starts — fine for this self-contained demo slice
-// (SEEDING.md), which reseeds automatically whenever the database is empty.
-const dataPath =
-  process.env.NCRP_DATABASE_PATH ||
-  (process.env.VERCEL
-    ? "/tmp/ncrp-one-case.db"
-    : path.join(process.cwd(), "data", "ncrp-one-case.db"));
-fs.mkdirSync(path.dirname(dataPath), { recursive: true });
 const globalDb = globalThis as unknown as { ncrpDb?: DatabaseSync };
-export const db = globalDb.ncrpDb ?? new DatabaseSync(dataPath);
-globalDb.ncrpDb = db;
-db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+function getDatabase() {
+  if (
+    process.env.NCRP_BACKEND === "supabase" ||
+    (process.env.NODE_ENV === "production" &&
+      process.env.NCRP_BACKEND !== "local")
+  ) {
+    throw new Error(
+      "SQLite is disabled in production. Configure NCRP_BACKEND=supabase and use the Supabase repository.",
+    );
+  }
+  if (!globalDb.ncrpDb) {
+    const dataPath =
+      process.env.NCRP_DATABASE_PATH ||
+      path.join(process.cwd(), "data", "ncrp-one-case.db");
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    globalDb.ncrpDb = new DatabaseSync(dataPath);
+    globalDb.ncrpDb.exec(
+      "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;",
+    );
+  }
+  return globalDb.ncrpDb;
+}
+
+export const db = new Proxy({} as DatabaseSync, {
+  get(_target, property) {
+    const value = Reflect.get(getDatabase(), property);
+    return typeof value === "function" ? value.bind(getDatabase()) : value;
+  },
+});
 
 export function initializeDatabase() {
-  db.exec(`
+  getDatabase().exec(`
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('citizen','operator')), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS citizens (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id), full_name TEXT NOT NULL, phone_masked TEXT, city TEXT, state TEXT, preferred_language TEXT DEFAULT 'en', created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS institutions (id TEXT PRIMARY KEY, name TEXT NOT NULL, institution_type TEXT NOT NULL, short_code TEXT, city TEXT, state TEXT, simulated INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
@@ -33,13 +50,4 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), case_id TEXT NOT NULL REFERENCES cases(id), notification_type TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, read_at TEXT, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, actor_user_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL);
   `);
-}
-
-/**
- * node:sqlite returns rows with a null prototype, which React refuses to
- * serialise across the server/client boundary. Every row that reaches a client
- * component must pass through here first.
- */
-export function toPlainRow<T extends Record<string, unknown>>(row: T): T {
-  return { ...row };
 }

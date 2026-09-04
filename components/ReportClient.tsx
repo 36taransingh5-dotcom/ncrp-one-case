@@ -18,9 +18,19 @@ type IntakePreview = {
 const defaultDescription =
   "Someone claiming to be from SBI said my KYC was expiring. They asked me to install an APK sent on WhatsApp and ₹48,500 was transferred.";
 
-export function ReportClient() {
+export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
   const [description, setDescription] = useState(defaultDescription);
   const [amount, setAmount] = useState("48500");
+  const [fraudType, setFraudType] = useState("Bank impersonation / phishing");
+  const [paymentChannel, setPaymentChannel] = useState("Bank transfer");
+  const [incidentAt, setIncidentAt] = useState(() =>
+    new Date().toISOString().slice(0, 16),
+  );
+  const [transactionReference, setTransactionReference] =
+    useState("SIM-TXN-48500");
+  const [institutionDetails, setInstitutionDetails] = useState(
+    "SBI account → beneficiary account (masked)",
+  );
   const [preview, setPreview] = useState<IntakePreview | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<"preview" | "create" | null>(null);
@@ -52,7 +62,15 @@ export function ReportClient() {
     const response = await fetch("/api/intake", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description, amount: Number(amount) }),
+      body: JSON.stringify({
+        description,
+        amount: Number(amount),
+        fraudType,
+        paymentChannel,
+        incidentAt: new Date(incidentAt).toISOString(),
+        transactionReference: transactionReference || undefined,
+        institutionDetails: institutionDetails || undefined,
+      }),
     });
     const data = await response.json();
     setBusy(null);
@@ -83,8 +101,8 @@ export function ReportClient() {
         </div>
         <dl className="intake-review-grid">
           <div>
-            <dt>Fraud type</dt>
-            <dd>{structured.fraudType}</dd>
+            <dt>Reported type</dt>
+            <dd>{fraudType}</dd>
           </div>
           <div>
             <dt>Mechanism</dt>
@@ -92,11 +110,23 @@ export function ReportClient() {
           </div>
           <div>
             <dt>Payment channel</dt>
-            <dd>{structured.paymentChannel}</dd>
+            <dd>{paymentChannel}</dd>
           </div>
           <div>
-            <dt>Impersonated institution</dt>
-            <dd>{structured.impersonatedEntity || "Not identified"}</dd>
+            <dt>Reported institution</dt>
+            <dd>
+              {institutionDetails ||
+                structured.impersonatedEntity ||
+                "Not identified"}
+            </dd>
+          </div>
+          <div>
+            <dt>Incident time</dt>
+            <dd>{new Date(incidentAt).toLocaleString("en-IN")}</dd>
+          </div>
+          <div>
+            <dt>Transaction reference</dt>
+            <dd>{transactionReference || "Not provided"}</dd>
           </div>
           <div>
             <dt>Amount</dt>
@@ -129,11 +159,13 @@ export function ReportClient() {
           >
             {busy === "create" ? "Creating case…" : "Confirm and create case"}
           </button>
-          <DemoEntry
-            role="citizen"
-            label="Enter citizen demo first"
-            variant="secondary"
-          />
+          {localDemo ? (
+            <DemoEntry
+              role="citizen"
+              label="Enter citizen demo first"
+              variant="secondary"
+            />
+          ) : null}
         </div>
       </section>
     );
@@ -163,6 +195,59 @@ export function ReportClient() {
           required
         />
       </label>
+      <label>
+        Fraud category
+        <select
+          value={fraudType}
+          onChange={(event) => setFraudType(event.target.value)}
+          required
+        >
+          <option>Bank impersonation / phishing</option>
+          <option>Investment scam</option>
+          <option>Marketplace fraud</option>
+          <option>OTP / account takeover</option>
+          <option>Other financial cyber fraud</option>
+        </select>
+      </label>
+      <label>
+        Payment channel
+        <select
+          value={paymentChannel}
+          onChange={(event) => setPaymentChannel(event.target.value)}
+          required
+        >
+          <option>Bank transfer</option>
+          <option>UPI</option>
+          <option>Card</option>
+          <option>Wallet</option>
+          <option>Other digital payment</option>
+        </select>
+      </label>
+      <label>
+        When did it happen?
+        <input
+          type="datetime-local"
+          value={incidentAt}
+          onChange={(event) => setIncidentAt(event.target.value)}
+          required
+        />
+      </label>
+      <label>
+        Transaction reference (optional)
+        <input
+          value={transactionReference}
+          onChange={(event) => setTransactionReference(event.target.value)}
+          maxLength={120}
+        />
+      </label>
+      <label>
+        Institution or masked account details (optional)
+        <input
+          value={institutionDetails}
+          onChange={(event) => setInstitutionDetails(event.target.value)}
+          maxLength={160}
+        />
+      </label>
       {status && (
         <div className="error" role="status">
           {status}
@@ -172,11 +257,13 @@ export function ReportClient() {
         <button className="btn" disabled={busy !== null}>
           {busy === "preview" ? "Reading your report…" : "Continue"}
         </button>
-        <DemoEntry
-          role="citizen"
-          label="Enter citizen demo first"
-          variant="secondary"
-        />
+        {localDemo ? (
+          <DemoEntry
+            role="citizen"
+            label="Enter citizen demo first"
+            variant="secondary"
+          />
+        ) : null}
       </div>
       <p className="footer-note review-note">
         Nothing is sent to a bank or a police station. This prototype creates a

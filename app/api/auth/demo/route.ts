@@ -4,9 +4,15 @@ import { db } from "@/lib/db";
 import { ensureDemoData } from "@/lib/demo";
 import { issueSession } from "@/lib/auth";
 import { logEvent, logFailure } from "@/lib/observability";
+import { isLocalBackend } from "@/lib/supabase/config";
 
 export async function POST(request: Request) {
   try {
+    if (!isLocalBackend())
+      return NextResponse.json(
+        { error: "Demo-role sessions are disabled in production." },
+        { status: 404 },
+      );
     const { role } = z
       .object({ role: z.enum(["citizen", "operator"]) })
       .parse(await request.json());

@@ -1,4 +1,5 @@
 import { ReportClient } from "@/components/ReportClient";
+import { isLocalBackend } from "@/lib/supabase/config";
 
 export default function ReportPage() {
   return (
@@ -19,7 +20,7 @@ export default function ReportPage() {
             numbers, section codes or the name of the right department — we work
             those out and show you what we understood before anything is filed.
           </p>
-          <ReportClient />
+          <ReportClient localDemo={isLocalBackend()} />
         </div>
       </main>
     </>

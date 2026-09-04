@@ -1,6 +1,7 @@
 import type {
   BankAdapter,
   FraudReportingAdapter,
+  NotificationAdapter,
   PoliceAdapter,
 } from "./contracts";
 import { logEvent } from "@/lib/observability";
@@ -36,6 +37,20 @@ export const simulatedBankAdapter: BankAdapter = {
       providerReference: reference("HDFC", caseId),
     };
   },
+  async getFreezeStatus(providerReference) {
+    logEvent("adapter.bank.freeze_status", {
+      providerReference,
+      adapter: "simulated",
+    });
+    return { status: "completed", securedAmount: 0 };
+  },
+  async reconcile(providerReference) {
+    logEvent("adapter.bank.reconcile", {
+      providerReference,
+      adapter: "simulated",
+    });
+    return { reconciled: true };
+  },
 };
 export const simulatedPoliceAdapter: PoliceAdapter = {
   async assignCyberCell(caseId) {
@@ -64,5 +79,15 @@ export const simulatedReportingAdapter: FraudReportingAdapter = {
       adapter: "simulated",
     });
     return { externalReference: reference("NCRP", caseId) };
+  },
+};
+export const simulatedNotificationAdapter: NotificationAdapter = {
+  async send(input) {
+    logEvent("adapter.notification.send", {
+      caseId: input.caseReference,
+      operation: input.template,
+      adapter: "simulated",
+    });
+    return { messageReference: reference("NOTICE", input.caseReference) };
   },
 };

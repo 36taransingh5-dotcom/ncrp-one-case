@@ -1,4 +1,8 @@
 import { DemoEntry } from "@/components/DemoEntry";
+import { currentSession } from "@/lib/auth";
+import { isLocalBackend } from "@/lib/supabase/config";
+
+export const dynamic = "force-dynamic";
 
 const steps = [
   {
@@ -15,12 +19,20 @@ const steps = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const session = await currentSession();
+  const local = isLocalBackend();
+  const accountHref = session
+    ? session.role === "operator"
+      ? "/operations"
+      : "/cases"
+    : "/auth";
   return (
     <>
       <div className="notice">
         Independent hackathon prototype — not an official government service.
-        All identities, institutions, transactions and actions are synthetic.
+        All identities, institutions, transactions and external actions are
+        synthetic or simulated.
       </div>
       <main className="shell">
         <nav className="nav">
@@ -29,7 +41,12 @@ export default function Home() {
           </div>
           <div className="navlinks">
             <a href="#how">How it works</a>
-            <DemoEntry role="operator" label="Enter operations demo" />
+            <a className="btn secondary" href={accountHref}>
+              {session ? "Open account" : "Sign in"}
+            </a>
+            {local ? (
+              <DemoEntry role="operator" label="Enter operations demo" />
+            ) : null}
           </div>
         </nav>
 
@@ -46,19 +63,31 @@ export default function Home() {
               agencies and the next action — in the open.
             </p>
             <div className="hero-actions">
-              <DemoEntry role="citizen" label="Enter citizen demo" />
-              <DemoEntry role="operator" label="Enter operations demo" />
-              <a className="btn ghost" href="/report">
+              <a
+                className="btn"
+                href={session?.role === "citizen" ? "/report" : "/auth"}
+              >
                 Start a new report
               </a>
+              {local ? (
+                <DemoEntry role="citizen" label="Enter citizen demo" />
+              ) : null}
+              {local ? (
+                <DemoEntry role="operator" label="Enter operations demo" />
+              ) : null}
             </div>
             <p className="hero-hint">
-              Both demos open instantly. No sign-up, no data collected.
+              {local
+                ? "Synthetic demos open instantly; the production path uses real accounts."
+                : "Secure email sign-in keeps every citizen case private."}
             </p>
           </div>
 
-          <div className="card hero-card" aria-label="Example case summary">
-            <span className="label">A case in progress</span>
+          <div
+            className="card hero-card"
+            aria-label="Synthetic example case summary"
+          >
+            <span className="label">A synthetic case in progress</span>
             <h2>NCRP-26-847193</h2>
             <div className="hero-amount">
               <span className="label">Reported stolen</span>

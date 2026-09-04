@@ -1,27 +1,27 @@
 import { redirect } from "next/navigation";
 import { currentSession } from "@/lib/auth";
-import { db, toPlainRow } from "@/lib/db";
 import { ensureDemoData } from "@/lib/demo";
 import { OperationsClient } from "@/components/OperationsClient";
-import { getCaseByPublicId } from "@/lib/case-engine";
+import { getCaseDetail, listOperationsCases } from "@/lib/repository";
+import { isLocalBackend } from "@/lib/supabase/config";
 export const dynamic = "force-dynamic";
 export default async function Operations() {
-  ensureDemoData();
+  if (isLocalBackend()) ensureDemoData();
   const session = await currentSession();
-  if (!session || session.role !== "operator") redirect("/");
-  const cases = db
-    .prepare(
-      "SELECT k.*,c.full_name FROM cases k JOIN citizens c ON c.id=k.citizen_id ORDER BY CASE k.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,k.last_activity_at DESC",
-    )
-    .all()
-    .map((row) => toPlainRow(row as Record<string, unknown>));
-  const detail = getCaseByPublicId("NCRP-26-847193", true);
-  if (!detail) throw new Error("Golden case unavailable");
+  if (!session || session.role !== "operator") redirect("/auth");
+  const cases = await listOperationsCases();
+  if (!cases.length) redirect("/operations/empty");
+  const preferred =
+    cases.find((item) => item.public_case_id === "NCRP-26-847193") || cases[0];
+  const detail = await getCaseDetail(String(preferred.public_case_id), true);
+  if (!detail) throw new Error("Case detail unavailable");
   return (
     <OperationsClient
       cases={cases}
       initialDetail={detail}
       operatorName={session.displayName}
+      operatorId={session.userId}
+      localDemo={isLocalBackend()}
     />
   );
 }

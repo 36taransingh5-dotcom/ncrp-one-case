@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
 import { MoneyTrail } from "@/components/MoneyTrail";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Row = Record<string, unknown>;
 
@@ -167,9 +168,11 @@ function useCountUp(target: number) {
 export function CitizenCaseClient({
   initial,
   caseId,
+  realtimeMode = "sse",
 }: {
   initial: CaseDetail;
   caseId: string;
+  realtimeMode?: "sse" | "supabase";
 }) {
   const [detail, setDetail] = useState(initial);
   const detailRef = useRef(initial);
@@ -248,7 +251,9 @@ export function CitizenCaseClient({
         setSessionExpired(true);
         setLive(false);
         setMessage(
-          "Your demo session has ended. Re-enter the citizen demo to continue.",
+          realtimeMode === "supabase"
+            ? "Your secure session has ended. Sign in again to continue."
+            : "Your demo session has ended. Re-enter the citizen demo to continue.",
         );
         return;
       }
@@ -268,6 +273,25 @@ export function CitizenCaseClient({
   };
 
   useEffect(() => {
+    if (realtimeMode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      const channel = supabase
+        .channel(`case:${String(initial.case.id)}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "case_events",
+            filter: `case_id=eq.${String(initial.case.id)}`,
+          },
+          async () => reload(true),
+        )
+        .subscribe((status) => setLive(status === "SUBSCRIBED"));
+      return () => {
+        void supabase.removeChannel(channel);
+      };
+    }
     const source = new EventSource("/api/realtime");
     source.onopen = () => setLive(true);
     source.onerror = () => setLive(false);
@@ -280,8 +304,9 @@ export function CitizenCaseClient({
       }
     };
     return () => source.close();
+    // `reload` intentionally reads the latest detail through its ref-backed state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId, initial.case.id]);
+  }, [caseId, initial.case.id, realtimeMode]);
 
   const c = detail.case as Row;
   const incident = detail.incident as Row;
@@ -423,8 +448,11 @@ export function CitizenCaseClient({
             <button className="btn secondary" onClick={shareReference}>
               Copy case reference
             </button>
-            <a href="/" className="btn secondary">
-              Exit demo
+            <a
+              href={realtimeMode === "supabase" ? "/cases" : "/"}
+              className="btn secondary"
+            >
+              {realtimeMode === "supabase" ? "Your cases" : "Exit demo"}
             </a>
           </div>
         </div>
@@ -513,12 +541,17 @@ export function CitizenCaseClient({
         )}
         {sessionExpired && (
           <section className="card section">
-            <h2>Re-enter the demo to continue</h2>
-            <p>
-              Your demo session expired. Nothing in your case has been lost.
-            </p>
-            <a className="btn" href="/">
-              Return to demo entry
+            <h2>
+              {realtimeMode === "supabase"
+                ? "Sign in again to continue"
+                : "Re-enter the demo to continue"}
+            </h2>
+            <p>Your session expired. Nothing in your case has been lost.</p>
+            <a
+              className="btn"
+              href={realtimeMode === "supabase" ? "/auth" : "/"}
+            >
+              {realtimeMode === "supabase" ? "Sign in" : "Return to demo entry"}
             </a>
           </section>
         )}

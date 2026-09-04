@@ -2,42 +2,53 @@
 
 [![CI](https://github.com/36taransingh5-dotcom/ncrp-one-case/actions/workflows/ci.yml/badge.svg)](https://github.com/36taransingh5-dotcom/ncrp-one-case/actions/workflows/ci.yml)
 
-**Report once. Government coordinates the rest.** NCRP One Case is an independent hackathon prototype of a unified cyber-fraud case coordination experience. It is not an official government service. All people, institutions, transactions, identifiers and downstream actions are synthetic or simulated.
+**Report once. Government coordinates the rest.** NCRP One Case is an independent hackathon prototype of a national cyber-fraud case coordination platform. It is not an official government service. Every person, institution, identifier, transaction and external government/bank action shown is synthetic or simulated.
 
-## What works
+## Round 2 capabilities
 
-- Signed, HTTP-only demo sessions with citizen and operator roles.
-- Persistent SQLite entities for cases, incidents, funds, evidence, requests, assignments, FIR records, events, notifications and audit logs.
-- Citizen timeline and money totals derived from recorded events, reconciling exactly to the reported loss.
-- Deterministic seeded case `NCRP-26-847193` and three additional queue cases.
-- Operator-triggered simulated additional ₹6,700 hold, with transaction-state validation, event, audit record, notification and server-sent-event update.
-- Citizen evidence upload with persisted metadata and SHA-256 fingerprint.
-- Bounded investigation, evidence, FIR, escalation, resolution and closure actions with invalid-transition protection.
-- Branching fund trail derived from recorded movements and account hops, rendered without a graph library and degrading to an indented rail on small screens.
-- Citizen notification inbox and internal operator audit history.
-- Persisted timestamp-based SLA evaluation with automatic breach and escalation events.
-- Authenticated evidence retrieval, downloadable synthetic case summaries and security headers.
-- Two-step citizen intake: review an explainable structured interpretation before explicitly creating a case.
+- Stateless Next.js 16 application with Supabase Postgres as production persistence; SQLite remains an explicit local demo adapter only.
+- Supabase email OTP/magic-link accounts, server-verified sessions and database-managed citizen/operator roles.
+- PostgreSQL RLS for citizen-owned cases, evidence, events and notifications; citizens cannot self-assign operator access.
+- Arbitrary case intake, persistent citizen case list, prioritized operations queue and assignment-based **My Queue**.
+- Transactional domain commands with optimistic concurrency, idempotency receipts, case events, citizen notifications and tamper-evident audit chaining.
+- Private Supabase Storage evidence with short-lived signed downloads, 8 MiB/type/magic-byte validation, SHA-256, retention metadata and non-overwriting object keys.
+- Supabase Realtime updates sourced from committed `case_events`, plus a durable outbox and database-backed integration jobs with leases, retries and stale-work recovery.
+- Replaceable simulated NCRP/reporting, bank/UPI and police/FIR adapters. No real external action is performed.
+- Repeatable local and Supabase seeds for `NCRP-26-847193`, including the operator action that moves ₹6,700 from tracing to secured.
+- Node tests, SQL RLS tests, full two-session Playwright E2E, format/type/build checks and GitHub Actions CI.
 
-## Run locally
+## Local product demo
 
-Requires Node 24+ (the vertical slice uses its built-in SQLite driver).
+Requires Node 24+.
 
 ```bash
-cp .env.example .env.local
 npm install
 npm run seed
 npm run dev
 ```
 
-Open `http://localhost:3000`. Select **Enter citizen demo** or **Operations demo**; no password is required for the seeded, signed demo session. The demo accounts are `citizen@demo.onecase.in` and `operator@demo.onecase.in`.
+With no Supabase variables configured, development uses the explicit local adapter and displays one-click synthetic citizen/operator entry. Open `http://localhost:3000`.
 
-Run `npm run reset-demo` to restore the golden demo state. Use `npm test`, `npm run typecheck` and `npm run build` before deployment.
+```bash
+npm run format:check
+npm run typecheck
+npm test
+npm run test:e2e
+npm run build
+```
 
-## Deployment
+## Production-shaped Supabase setup
 
-Set `NCRP_DATABASE_PATH` and `NCRP_UPLOAD_DIR` to durable mounted volumes, and set a high-entropy `NCRP_SESSION_SECRET`. For a horizontally scaled production deployment, substitute the repository interface with PostgreSQL/storage/realtime infrastructure as described in [INTEGRATIONS.md](INTEGRATIONS.md).
+1. Create a Supabase project and copy `.env.example` to `.env.local`.
+2. Set `NCRP_BACKEND=supabase`, the URL, publishable key, secret key and worker secret.
+3. Link the CLI and apply migrations: `npx supabase link --project-ref <ref>` then `npx supabase db push`.
+4. Configure the Auth site URL and add `<app-url>/auth/callback` as an allowed redirect URL.
+5. Create an operator Auth user, then run `npm run provision-operator -- operator@example.org` with admin environment variables available.
+6. Optionally set the four synthetic demo identity variables in `.env.example` and run `npm run seed:supabase`.
+7. Run the worker route on a recurring schedule with `Authorization: Bearer $NCRP_WORKER_SECRET`.
 
-`npm start` pins the standalone server to the repository-level database and upload directories. Container deployments should set both paths to absolute durable-volume locations.
+Verify a fresh deployment with `GET /api/health`; production should return `{ "status": "ok", "backend": "supabase" }`.
 
-Read [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [SEEDING.md](SEEDING.md), and [INTEGRATIONS.md](INTEGRATIONS.md).
+The service secret is server-only. A production instance never sets `NCRP_BACKEND=local`; when set to `supabase`, any attempted SQLite access fails closed.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [SEEDING.md](SEEDING.md), and [INTEGRATIONS.md](INTEGRATIONS.md).

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { currentSession } from "@/lib/auth";
-import { getCaseByPublicId, money } from "@/lib/case-engine";
+import { getCaseDetail } from "@/lib/repository";
+
+const money = (value: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
 
 export async function GET(
   _: Request,
@@ -13,7 +20,7 @@ export async function GET(
       { status: 401 },
     );
   const { caseId } = await params;
-  const detail = getCaseByPublicId(caseId, session.role === "operator");
+  const detail = await getCaseDetail(caseId, session.role === "operator");
   if (!detail)
     return NextResponse.json({ error: "Case not found." }, { status: 404 });
   if (session.role === "citizen" && detail.citizen.user_id !== session.userId)

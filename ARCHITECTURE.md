@@ -2,30 +2,40 @@
 
 ```mermaid
 flowchart LR
-  C[Citizen command centre] --> API[Next route handlers]
-  O[Operations console] --> API
-  API --> Auth[Signed role session]
-  API --> Domain[Case engine]
-  Domain --> DB[(SQLite persistence)]
-  Domain --> E[Case events + audit logs]
-  Domain --> A[Simulated adapters]
-  Domain --> RT[SSE publisher]
-  RT --> C
-  API --> Store[Private local evidence storage]
+  C[Citizen account] --> N[Next.js application]
+  O[Authenticated operator] --> N
+  N --> A[Supabase Auth]
+  N --> D[Transactional domain RPCs]
+  D --> P[(Postgres + RLS)]
+  D --> E[Case events + notifications + audit]
+  E --> X[Transactional outbox]
+  E --> R[Supabase Realtime]
+  R --> C
+  X --> W[Authenticated worker]
+  W --> J[Durable integration jobs]
+  J --> S[Replaceable simulated adapters]
+  N --> B[Private Storage bucket]
+  B --> U[60-second signed download]
 ```
 
-## Domain and event model
+## Runtime boundaries
 
-The database has `users`, `citizens`, `cases`, `incidents`, `transactions`, `fund_movements`, `institutions`, `evidence`, `evidence_requests`, `agency_assignments`, `fir_records`, `case_events`, `notifications` and `audit_logs`. The schema is initialized in `lib/db.ts` and can be inspected directly with a SQLite client.
+`lib/repository.ts` is the application persistence boundary. `NCRP_BACKEND=supabase` selects the production repository; missing Supabase configuration in development selects the local demo adapter. `lib/db.ts` refuses to open SQLite whenever the backend is explicitly Supabase, preventing a production `/tmp` fallback.
 
-Operator actions are domain commands—not freeform status edits. The case engine validates state transitions and command preconditions before atomically updating entities, appending a case event, writing an internal audit record and citizen notification, then publishing a case update. The citizen timeline is rendered solely from `case_events`; the money trail is rendered from `fund_movements`.
+Supabase migrations own the production schema. `create_case`, `execute_case_command` and `record_evidence_upload` are transactional database commands. The operator command locks the case row, compares `cases.version`, performs a validated mutation, reconciles movement totals, appends a case event and citizen notification, adds a hash-chained audit record and stores an idempotency receipt in one transaction. A retry with the same key returns the receipt; a stale version returns `CASE_CHANGED`.
 
-`lib/domain/fund-graph.ts` turns that flat movement list into the branching account tree the citizen sees. Each movement is a slice of the reported amount that came to rest somewhere, and the transaction attached to it records the immediate sender and the receiving account — chaining those hops recovers the real structure (reported account → beneficiary → onward accounts) without a schema change. A node's displayed amount is the money resting on it plus everything that passed through it, so the tree reconciles to the reported total.
+## Identity and authorization
 
-The institutional-response SLA is calculated from the persisted `FREEZE_REQUEST_CREATED` timestamp and a two-hour threshold. A response event satisfies it; an overdue evaluation atomically appends `SLA_BREACHED` and `CASE_ESCALATED` once, changes ownership to the escalation desk, notifies the citizen and publishes the update.
+Supabase Auth owns account identity and refresh tokens. The auth trigger creates every new account as a citizen. Operator promotion requires the server-only service credential through `scripts/provision-operator.ts`; authenticated clients have permission to update only their own `display_name`.
 
-## Security and realtime
+RLS is the primary data boundary. Citizens can select only resources linked to their own `citizens.user_id`; operators receive the read surface required for the operations queue and audit history. Route handlers also verify roles and ownership as defense in depth. The service key is confined to the worker, seed and rollback-cleanup paths.
 
-The server verifies the role from a signed, HTTP-only, same-site cookie before protected routes and mutations. Inputs are validated with Zod; uploads have MIME and size limits and are stored outside public static assets with a SHA-256 fingerprint. SSE distributes updates from server domain commands; it contains no client-side simulation timer. The citizen page reacts to an update by counting the affected totals to their new values, re-proportioning the split bar, flashing the fund-trail nodes whose status actually changed, and surfacing one notification — all driven by diffing the newly fetched case against the previous one.
+## Evidence and realtime
 
-SQLite is intentionally self-contained for this local vertical slice. A production deployment should use PostgreSQL, private object storage, a durable pub/sub/realtime provider, and row-level authorization.
+Evidence objects use the private `case-evidence` bucket and keys shaped as `<auth-user>/<case-uuid>/<random-uuid>-<safe-name>`. Storage RLS enforces the first two path segments. The application validates size, MIME and signature, hashes bytes before upload, never overwrites, and records retention/soft-delete/legal-hold metadata. Reads are temporary signed redirects.
+
+Citizen clients subscribe to Postgres changes for their authorized case events. Every view reloads canonical persisted state after a notification, so Realtime is only an invalidation signal—never the source of truth. The local demo retains SSE solely as an adapter for offline judging.
+
+## Durable work
+
+External requests are inserted into `integration_jobs` in the same transaction as the initiating command. Workers claim rows using `FOR UPDATE SKIP LOCKED`, pass work to adapter contracts, record external references and retry with bounded exponential backoff. Expired leases are recovered automatically. Case events also create `outbox_events`; the worker verifies the persisted source before marking publication complete. Supabase Realtime distributes committed database events across application instances.

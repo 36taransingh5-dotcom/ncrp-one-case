@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { currentSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isLocalBackend } from "@/lib/supabase/config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(
   _: Request,
@@ -14,6 +16,31 @@ export async function GET(
       { error: "Authentication required." },
       { status: 401 },
     );
+  if (!isLocalBackend()) {
+    const supabase = await createSupabaseServerClient();
+    const { data: evidence, error } = await supabase
+      .from("evidence")
+      .select("storage_bucket,storage_key,original_filename")
+      .eq("id", (await params).evidenceId)
+      .is("deleted_at", null)
+      .single();
+    if (error || !evidence)
+      return NextResponse.json(
+        { error: "Evidence not found or unavailable." },
+        { status: 404 },
+      );
+    const { data, error: signedError } = await supabase.storage
+      .from(evidence.storage_bucket)
+      .createSignedUrl(evidence.storage_key, 60, {
+        download: evidence.original_filename,
+      });
+    if (signedError || !data)
+      return NextResponse.json(
+        { error: "A private download link could not be created." },
+        { status: 503 },
+      );
+    return NextResponse.redirect(data.signedUrl);
+  }
   const evidence = db
     .prepare(
       "SELECT e.*,c.user_id owner_user_id FROM evidence e JOIN cases k ON k.id=e.case_id JOIN citizens c ON c.id=k.citizen_id WHERE e.id=?",

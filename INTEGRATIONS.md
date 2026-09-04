@@ -1,7 +1,16 @@
 # Integration boundaries
 
-Everything inside this application boundary is implemented: sessions and roles, persistence, derived totals, domain events, audit logs, SSE updates, evidence storage and hashing. No real complaint is filed and no real funds are frozen.
+No real NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker or inter-agency system is connected. All external identities, references and responses are synthetic or simulated and the UI states this independently of the demo content.
 
-`lib/adapters/contracts.ts` exposes replaceable `BankAdapter`, `PoliceAdapter` and `FraudReportingAdapter` contracts. `lib/adapters/simulated.ts` implements deterministic adapters invoked by fund-security, assignment and FIR commands in this prototype. Production bindings would use authenticated, approved government/banking APIs, idempotency keys, encrypted transport, retry queues and provider-specific reconciliation while retaining the case-engine interface.
+`lib/adapters/contracts.ts` owns the replaceable bank, police and fraud-reporting interfaces; `lib/adapters/simulated.ts` is the deterministic development implementation. Application state never depends on an adapter's in-memory state. Commands persist a job first, and `lib/jobs/process.ts` later invokes the adapter and records its result.
 
-Identity, telecom, Aadhaar/DigiLocker, NCRP/1930/CFCFRMS, police/FIR, bank/UPI and inter-agency systems are all simulated. The UI labels them as simulated and never implies official affiliation or a real external action.
+| Boundary                        | Current adapter                 | Durable behavior                                | Production replacement               |
+| ------------------------------- | ------------------------------- | ----------------------------------------------- | ------------------------------------ |
+| NCRP / 1930 / CFCFRMS           | Simulated reporting             | External reference in job result                | Approved authenticated complaint API |
+| Bank / UPI                      | Simulated bank                  | Freeze job, idempotency key, retries, reference | Approved participant-bank gateway    |
+| Police / FIR                    | Simulated police                | Assignment/review/registration jobs             | State police integration             |
+| Evidence malware scan           | Interface-ready validation hook | MIME/signature/hash retained                    | Approved asynchronous scanner        |
+| Notifications                   | Persistent in-app notifications | Atomic record + outbox event                    | Transactional email adapter          |
+| Telecom / identity / DigiLocker | Not connected                   | Explicitly out of scope                         | Future approved adapters only        |
+
+Provider implementations must preserve idempotency keys, classify retryable/permanent errors, enforce timeouts, return external reference IDs and support reconciliation. They must never log evidence bytes, complaint narratives, session tokens or unmasked personal/financial data.

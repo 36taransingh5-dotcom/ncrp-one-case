@@ -8,15 +8,22 @@
     "build": "next build",
     "start": "node scripts/start.mjs",
     "seed": "tsx scripts/seed.ts",
+    "seed:supabase": "tsx scripts/seed-supabase.ts",
+    "provision-operator": "tsx scripts/provision-operator.ts",
     "reset-demo": "tsx scripts/seed.ts --reset",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
-    "format": "prettier --write ."
+    "test:e2e": "playwright test",
+    "test:db": "supabase test db",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.115.0",
     "next": "^16.3.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -24,10 +31,12 @@
     "zod": "^4.5.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "prettier": "^3.9.6",
+    "supabase": "^2.116.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   }

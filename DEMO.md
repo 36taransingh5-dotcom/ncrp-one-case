@@ -1,12 +1,17 @@
-# 60-second judge demo
+# Round 2 demo
 
-1. Open the landing page and read the proposition: **Report once. Government coordinates the rest.** Click **Enter citizen demo** — it opens case `NCRP-26-847193` directly.
-2. The top of the page tells the whole story in three seconds: **₹48,500 reported stolen**, split by a proportional bar into **₹31,200 secured**, **₹12,000 being traced** and **₹5,300 unrecovered**. Point out that the three amounts reconcile exactly to the reported total.
-3. Immediately below: **Nothing needed from you right now**, and **Waiting for HDFC Bank** with the request time, the two-hour response window and live elapsed time — all read from recorded timestamps.
-4. Scroll to the money trail. It branches: your SBI account → the HDFC beneficiary account (₹31,200 held, ₹5,300 still traced) → onward to ICICI ••1834 (₹6,700) and an ATM withdrawal (₹5,300).
-5. Open **Enter operations demo** in another tab. `NCRP-26-847193` is tagged **Demo case**, already selected, and **Secure ₹6,700** sits at the top of the action column showing ₹31,200 → ₹37,900. Click it.
-6. Return to the citizen tab **without refreshing**. A notification appears — _₹6,700 additional funds secured_ — secured counts up to **₹37,900**, tracing drops to **₹5,300**, the bar re-proportions, the ICICI node turns green, and a new timeline entry appears.
-7. Show the FIR review status and who is on the case.
-8. Close: “One report. One case. Government coordinates the rest.”
+## Coordination-engine journey
 
-Clicking **Secure ₹6,700** twice is rejected by the case engine, not just the button. Reset at any time from Operations or with `npm run reset-demo`; the golden case is re-anchored to the current time, so elapsed times and SLA deadlines stay truthful on any day.
+1. Sign in as a new citizen with an email magic link, or use the local synthetic citizen shortcut.
+2. Report a ₹6,700 synthetic incident. Review the structured interpretation and create the new `NCRP-YY-XXXXXX` case.
+3. Upload a small PDF, PNG, JPG or text evidence file. Show the SHA-256 fingerprint and private evidence link.
+4. Open a separate operator session. Find the new case in the prioritized queue and switch to **My Queue** after assignment.
+5. Identify the beneficiary bank and send a freeze request. Explain that the command transaction created the event, audit, notification, outbox and durable adapter job.
+6. Record the traceable ₹6,700 movement as secured.
+7. Return to the citizen tab without refreshing: secured funds, money graph, timeline and notification update from committed state.
+
+## Golden fallback
+
+Use `NCRP-26-847193` when time is limited. It begins with ₹31,200 secured, ₹12,000 tracing and ₹5,300 unrecovered. Select **Secure ₹6,700** to reach ₹37,900 secured and ₹5,300 tracing. Reset is available only in the explicit local demo backend.
+
+Close with: **“One report. One case. Government coordinates the rest.”** Then reiterate that the product is an independent prototype and every external action shown is simulated.

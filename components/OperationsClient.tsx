@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { CaseDetail } from "@/lib/types";
+import { useMemo, useRef, useState } from "react";
+import type { CaseDetail, CaseListRow } from "@/lib/types";
 
 type Row = Record<string, unknown>;
 type SimpleAction =
@@ -54,22 +54,28 @@ export function OperationsClient({
   cases,
   initialDetail,
   operatorName,
+  operatorId,
+  localDemo,
 }: {
-  cases: Row[];
+  cases: CaseListRow[];
   initialDetail: CaseDetail;
   operatorName: string;
+  operatorId: string;
+  localDemo: boolean;
 }) {
   const [rows, setRows] = useState(cases);
   const [detail, setDetail] = useState(initialDetail);
   const [query, setQuery] = useState("");
   const [priority, setPriority] = useState("all");
   const [stage, setStage] = useState("all");
+  const [scope, setScope] = useState("all");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "error">(
     "success",
   );
   const [busy, setBusy] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const commandKeys = useRef(new Map<string, string>());
   const selected = detail.case as Row;
   const fir = detail.fir as Row;
   const selectedCaseId = String(selected.public_case_id);
@@ -82,10 +88,11 @@ export function OperationsClient({
         return (
           haystack.includes(query.toLowerCase()) &&
           (priority === "all" || row.priority === priority) &&
-          (stage === "all" || row.case_status === stage)
+          (stage === "all" || row.case_status === stage) &&
+          (scope === "all" || row.assigned_operator_id === operatorId)
         );
       }),
-    [rows, query, priority, stage],
+    [rows, query, priority, stage, scope, operatorId],
   );
   const stages = useMemo(
     () =>
@@ -123,25 +130,39 @@ export function OperationsClient({
       return fail(data.error || "Case detail could not be loaded.");
     setDetail(data);
   };
-  const secure = async () => {
+  const secure = async (amount = 6700) => {
+    const keyName = `${selectedCaseId}:SECURE_ADDITIONAL_FUNDS:${amount}`;
+    const idempotencyKey =
+      commandKeys.current.get(keyName) || crypto.randomUUID();
+    commandKeys.current.set(keyName, idempotencyKey);
     setBusy("secure");
     setMessage("");
     const response = await fetch("/api/operations/secure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId: selectedCaseId, amount: 6700 }),
+      body: JSON.stringify({
+        caseId: selectedCaseId,
+        amount,
+        expectedVersion: Number(selected.version || 0),
+        idempotencyKey,
+      }),
     });
     const data = await response.json();
     setBusy("");
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return fail(data.error || "Action could not be completed.");
+    commandKeys.current.delete(keyName);
     updateDetail(
       data,
-      "₹6,700 secured. The citizen's case updated live — no refresh needed.",
+      `Recorded ${rupee(amount)} as secured. The movement, event, audit record and citizen notification were persisted and broadcast live.`,
     );
   };
   const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
+    const keyName = `${selectedCaseId}:${action}`;
+    const idempotencyKey =
+      commandKeys.current.get(keyName) || crypto.randomUUID();
+    commandKeys.current.set(keyName, idempotencyKey);
     setBusy(action);
     setMessage("");
     const actionPayload =
@@ -156,13 +177,19 @@ export function OperationsClient({
     const response = await fetch("/api/operations/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId: selectedCaseId, action: actionPayload }),
+      body: JSON.stringify({
+        caseId: selectedCaseId,
+        action: actionPayload,
+        expectedVersion: Number(selected.version || 0),
+        idempotencyKey,
+      }),
     });
     const data = await response.json();
     setBusy("");
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return fail(data.error || "Action could not be completed.");
+    commandKeys.current.delete(keyName);
     updateDetail(
       data,
       `${actionLabels[action]} recorded. The citizen's case updated live.`,
@@ -272,13 +299,15 @@ export function OperationsClient({
             >
               Open citizen view
             </a>
-            <button
-              className="btn secondary"
-              onClick={reset}
-              disabled={Boolean(busy)}
-            >
-              Reset demo
-            </button>
+            {localDemo ? (
+              <button
+                className="btn secondary"
+                onClick={reset}
+                disabled={Boolean(busy)}
+              >
+                Reset demo
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -295,6 +324,16 @@ export function OperationsClient({
               </span>
             </div>
             <div className="queue-filters">
+              <label>
+                Queue
+                <select
+                  value={scope}
+                  onChange={(event) => setScope(event.target.value)}
+                >
+                  <option value="all">All authorized cases</option>
+                  <option value="mine">My queue</option>
+                </select>
+              </label>
               <label>
                 Search
                 <input
@@ -477,7 +516,7 @@ export function OperationsClient({
               <button
                 className="btn"
                 style={{ width: "100%" }}
-                onClick={secure}
+                onClick={() => secure(6700)}
                 disabled={Boolean(busy) || !securableMovement}
               >
                 {busy === "secure"
@@ -492,6 +531,28 @@ export function OperationsClient({
               </p>
             </div>
           )}
+          {!isGolden &&
+          Number(selected.tracing_amount) > 0 &&
+          (!localDemo || Number(selected.tracing_amount) === 6700) ? (
+            <div className="card">
+              <div className="label">Financial intervention</div>
+              <h2 style={{ margin: "6px 0" }}>
+                Secure {rupee(selected.tracing_amount)}
+              </h2>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                Record confirmation for this traceable movement. The external
+                bank remains simulated and every mutation is idempotent.
+              </p>
+              <button
+                className="btn"
+                style={{ width: "100%" }}
+                onClick={() => secure(Number(selected.tracing_amount))}
+                disabled={Boolean(busy)}
+              >
+                {busy === "secure" ? "Writing event…" : "Record funds secured"}
+              </button>
+            </div>
+          ) : null}
           <div className="card">
             <div className="label">Case actions</div>
             <div className="action-stack">
