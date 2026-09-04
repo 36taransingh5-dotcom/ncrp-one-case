@@ -15,6 +15,10 @@ from public.citizens where user_id='a0000000-0000-0000-0000-000000000001';
 insert into public.cases(id,public_case_id,citizen_id,case_type,priority,reported_amount,tracing_amount,current_stage)
 select 'd0000000-0000-0000-0000-000000000002','NCRP-26-100002',id,'Financial cyber fraud','high',2000,2000,'REPORTED'
 from public.citizens where user_id='b0000000-0000-0000-0000-000000000002';
+insert into public.fund_movements(case_id,amount,movement_status)
+values
+  ('d0000000-0000-0000-0000-000000000001',1000,'tracing'),
+  ('d0000000-0000-0000-0000-000000000002',2000,'tracing');
 insert into public.evidence(case_id,uploaded_by_user_id,evidence_type,title,storage_key,original_filename,content_type,file_size,sha256)
 values
   ('d0000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','financial','A','a/case/a.txt','a.txt','text/plain',1,repeat('a',64)),
