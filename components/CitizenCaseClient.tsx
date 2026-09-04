@@ -275,25 +275,38 @@ export function CitizenCaseClient({
   useEffect(() => {
     if (realtimeMode === "supabase") {
       const supabase = createSupabaseBrowserClient();
-      const channel = supabase
-        .channel(`case:${String(initial.case.id)}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "case_events",
-          },
-          async (payload) => {
-            const eventCaseId = String(
-              (payload.new as Record<string, unknown>).case_id || "",
-            );
-            if (eventCaseId === String(initial.case.id)) await reload(true);
-          },
-        )
-        .subscribe((status) => setLive(status === "SUBSCRIBED"));
+      let disposed = false;
+      let channel: ReturnType<typeof supabase.channel> | null = null;
+      void (async () => {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          if (!disposed) setLive(false);
+          return;
+        }
+        if (disposed) return;
+        await supabase.realtime.setAuth(data.session.access_token);
+        if (disposed) return;
+        channel = supabase
+          .channel(`case:${String(initial.case.id)}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "case_events",
+            },
+            async (payload) => {
+              const eventCaseId = String(
+                (payload.new as Record<string, unknown>).case_id || "",
+              );
+              if (eventCaseId === String(initial.case.id)) await reload(true);
+            },
+          )
+          .subscribe((status) => setLive(status === "SUBSCRIBED"));
+      })();
       return () => {
-        void supabase.removeChannel(channel);
+        disposed = true;
+        if (channel) void supabase.removeChannel(channel);
       };
     }
     const source = new EventSource("/api/realtime");
