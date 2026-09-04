@@ -283,9 +283,13 @@ export function CitizenCaseClient({
             event: "INSERT",
             schema: "public",
             table: "case_events",
-            filter: `case_id=eq.${String(initial.case.id)}`,
           },
-          async () => reload(true),
+          async (payload) => {
+            const eventCaseId = String(
+              (payload.new as Record<string, unknown>).case_id || "",
+            );
+            if (eventCaseId === String(initial.case.id)) await reload(true);
+          },
         )
         .subscribe((status) => setLive(status === "SUBSCRIBED"));
       return () => {
