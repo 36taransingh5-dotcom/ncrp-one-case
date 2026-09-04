@@ -42,11 +42,11 @@ type Tone = "secured" | "tracing" | "unrecovered" | "mixed" | "pass";
  * reliably resolve custom properties everywhere, and these are the app's
  * only brand accents. */
 const TONE_COLOR: Record<Tone, string> = {
-  secured: "#16794a",
-  tracing: "#ad6500",
-  unrecovered: "#b42318",
-  mixed: "#0b5cab",
-  pass: "#93aec5",
+  secured: "#157a4c",
+  tracing: "#a35f00",
+  unrecovered: "#b23a2e",
+  mixed: "#3654e0",
+  pass: "#9aa3c2",
 };
 
 const cleanInstitution = (name: string | null) =>
