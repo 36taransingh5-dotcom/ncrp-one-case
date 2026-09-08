@@ -4,6 +4,16 @@ import crypto from "node:crypto";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
 import { calculateSlaTiming } from "@/lib/domain/sla";
 import { createSupabaseServerClient } from "./server";
+import { processIntegrationJobs } from "@/lib/jobs/process";
+import { logFailure } from "@/lib/observability";
+
+/** Commands that queue a simulated bank/police integration job. */
+const JOB_QUEUEING_ACTIONS = new Set([
+  "SEND_FREEZE_REQUEST",
+  "ASSIGN_CYBER_CELL",
+  "START_FIR_REVIEW",
+  "REGISTER_FIR",
+]);
 
 type Row = Record<string, unknown>;
 
@@ -27,8 +37,10 @@ function getSla(events: Row[]) {
     (event) =>
       [
         "AGENCY_ACKNOWLEDGED",
+        "INTEGRATION_JOB_COMPLETED",
         "FUNDS_PARTIALLY_SECURED",
         "FUNDS_SECURED",
+        "FUNDS_TRACED",
       ].includes(String(event.event_type)) &&
       new Date(String(event.occurred_at)) >=
         new Date(String(request.occurred_at)),
@@ -94,7 +106,7 @@ export async function getSupabaseCaseDetail(
     supabase
       .from("fund_movements")
       .select(
-        "*,source:transactions!source_transaction_id(source_identifier_masked),destination:transactions!destination_transaction_id(destination_identifier_masked)",
+        "*,source:transactions!source_transaction_id(source_identifier_masked),destination:transactions!destination_transaction_id(destination_identifier_masked,source_identifier_masked,institution:institutions(name))",
       )
       .eq("case_id", caseId)
       .order("occurred_at"),
@@ -161,15 +173,33 @@ export async function getSupabaseCaseDetail(
     },
     incident: incident.data as Row,
     events: eventRows,
-    movements: (movements.data || []).map((row: Row) => ({
-      ...row,
-      source_account: String(
-        (row.source as Row | null)?.source_identifier_masked || "",
-      ),
-      destination_account: String(
-        (row.destination as Row | null)?.destination_identifier_masked || "",
-      ),
-    })),
+    movements: (movements.data || []).map((row: Row) => {
+      const source = row.source as Row | null;
+      const destination = row.destination as Row | null;
+      const originAccount = source?.source_identifier_masked
+        ? String(source.source_identifier_masked)
+        : null;
+      return {
+        ...row,
+        source_account: String(source?.source_identifier_masked || ""),
+        destination_account: String(
+          destination?.destination_identifier_masked || "",
+        ),
+        // The fields buildFundFlow() actually reads: each destination
+        // transaction records its own immediate sender, so chaining those
+        // (rather than the movement's source_transaction_id, which always
+        // points back to the original reported transaction) is what turns
+        // onward hops into branches instead of a flat list.
+        origin_account: originAccount,
+        from_account: destination?.source_identifier_masked
+          ? String(destination.source_identifier_masked)
+          : originAccount,
+        to_account: destination?.destination_identifier_masked
+          ? String(destination.destination_identifier_masked)
+          : null,
+        to_institution: relationName(destination?.institution) || null,
+      };
+    }),
     evidence: (evidence.data || []) as Row[],
     evidenceRequests: (requests.data || []) as Row[],
     assignments: (assignments.data || []).map((row: Row) => ({
@@ -265,6 +295,20 @@ export async function executeSupabaseCommand(input: {
     p_payload: input.payload || {},
   });
   if (error) fail(error, "Operator command failed.");
+  // Vercel's cron ceiling (once/day on Hobby) is far too slow for a citizen
+  // to see a simulated bank/police response in the same session, so drain
+  // the freshly queued job inline. Best-effort: on failure the job stays
+  // queued and the daily cron (or a manual worker run) still picks it up.
+  if (JOB_QUEUEING_ACTIONS.has(input.action)) {
+    try {
+      await processIntegrationJobs(`inline:${crypto.randomUUID()}`, 5);
+    } catch (jobError) {
+      logFailure("operator.inline_job_processing_failed", jobError, {
+        publicCaseId: input.publicCaseId,
+        action: input.action,
+      });
+    }
+  }
   return getSupabaseCaseDetail(input.publicCaseId, true);
 }
 
