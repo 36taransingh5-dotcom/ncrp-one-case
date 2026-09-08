@@ -143,9 +143,10 @@ export default async function Home() {
 
         <p className="footer-note">
           Built for Build What Moves India. This prototype does not file
-          complaints, contact banks or police, freeze money, or register an FIR.
-          Bank, police and reporting integrations are simulated behind
-          replaceable interfaces.
+          official complaints, contact live banks or police, freeze real money,
+          or register a real FIR. Bank, police and reporting adapters may call
+          authenticated HTTP sandbox or partner endpoints when configured;
+          otherwise they stay simulated.
         </p>
       </main>
     </>

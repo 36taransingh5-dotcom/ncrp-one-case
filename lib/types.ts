@@ -41,5 +41,6 @@ export type CaseDetail = {
   fir: Record<string, unknown> | undefined;
   notifications: Record<string, unknown>[];
   sla: Record<string, unknown>;
+  integrationJobs?: Record<string, unknown>[];
   audits?: Record<string, unknown>[];
 };

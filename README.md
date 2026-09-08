@@ -13,7 +13,7 @@
 - Transactional domain commands with optimistic concurrency, idempotency receipts, case events, citizen notifications and tamper-evident audit chaining.
 - Private Supabase Storage evidence with short-lived signed downloads, 8 MiB/type/magic-byte validation, SHA-256, retention metadata and non-overwriting object keys.
 - Supabase Realtime updates sourced from committed `case_events`, plus a durable outbox and database-backed integration jobs with leases, retries and stale-work recovery.
-- Replaceable simulated NCRP/reporting, bank/UPI and police/FIR adapters. No real external action is performed.
+- Replaceable NCRP/reporting, bank/UPI and police/FIR adapters. Default is in-process simulation. `NCRP_INTEGRATION_MODE=http` sends authenticated, idempotent HTTP to configured partner or in-app sandbox endpoints. No live government or bank system is contacted.
 - Repeatable local and Supabase seeds for `NCRP-26-847193`, including the operator action that moves ₹6,700 from tracing to secured.
 - Node tests, SQL RLS tests, full two-session Playwright E2E, format/type/build checks and GitHub Actions CI.
 

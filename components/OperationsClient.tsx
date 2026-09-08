@@ -61,6 +61,7 @@ export function OperationsClient({
   localDemo,
   supportsTracing,
   institutions,
+  httpIntegrations,
 }: {
   cases: CaseListRow[];
   initialDetail: CaseDetail;
@@ -69,6 +70,7 @@ export function OperationsClient({
   localDemo: boolean;
   supportsTracing: boolean;
   institutions: Institution[];
+  httpIntegrations: boolean;
 }) {
   const [rows, setRows] = useState(cases);
   const [detail, setDetail] = useState(initialDetail);
@@ -338,8 +340,10 @@ export function OperationsClient({
   return (
     <>
       <div className="notice">
-        Operations demo · Independent hackathon prototype. External banking,
-        police, FIR and reporting systems are simulated behind adapters.
+        Operations demo · Independent hackathon prototype.
+        {httpIntegrations
+          ? " Bank, police and reporting calls go over authenticated HTTP to configured partner or sandbox endpoints. Identities remain synthetic — this is not an official NCRP or bank connection."
+          : " External banking, police, FIR and reporting systems are simulated behind adapters."}
       </div>
       <header className="dash-head">
         <div className="shell case-title">
@@ -612,8 +616,9 @@ export function OperationsClient({
                 Secure {rupee(selected.tracing_amount)}
               </h2>
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                Record confirmation for this traceable movement. The external
-                bank remains simulated and every mutation is idempotent.
+                Record confirmation for this traceable movement. Every mutation
+                is idempotent. External bank confirmation is handled by the
+                integration job{httpIntegrations ? " over HTTP" : ""}.
               </p>
               <button
                 className="btn"
@@ -732,6 +737,34 @@ export function OperationsClient({
                 </button>
               ))}
             </div>
+          </div>
+          <div className="card">
+            <div className="label">Integration jobs</div>
+            {(detail.integrationJobs || []).length ? (
+              <div className="timeline">
+                {(detail.integrationJobs || []).map((job) => (
+                  <div className="event" key={String(job.id)}>
+                    <time>{when(job.created_at)}</time>
+                    <strong>
+                      {String(job.provider)} ·{" "}
+                      {String(job.action).replaceAll("_", " ")}
+                    </strong>
+                    <p>
+                      {String(job.status)}
+                      {job.external_reference
+                        ? ` · ${String(job.external_reference)}`
+                        : ""}
+                      {job.last_error ? ` · ${String(job.last_error)}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+                No durable partner jobs for this case yet. Freeze, police and
+                reporting actions enqueue jobs first, then the adapter runs.
+              </p>
+            )}
           </div>
           <div className="card">
             <div className="label">FIR</div>

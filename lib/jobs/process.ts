@@ -1,10 +1,10 @@
 import "server-only";
 
+import { executeIntegrationAction } from "@/lib/adapters/execute";
 import {
-  simulatedBankAdapter,
-  simulatedNotificationAdapter,
-  simulatedPoliceAdapter,
-} from "@/lib/adapters/simulated";
+  getNotificationAdapter,
+  isPermanentIntegrationError,
+} from "@/lib/adapters";
 import { logEvent, logFailure } from "@/lib/observability";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -27,24 +27,6 @@ type OutboxEvent = {
   attempt_count: number;
 };
 
-async function executeJob(job: Job) {
-  const context = { idempotencyKey: job.idempotency_key, timeoutMs: 8_000 };
-  if (job.provider === "bank" && job.action === "request_freeze")
-    return simulatedBankAdapter.requestFreeze(
-      job.case_id,
-      String(job.payload_json.accountRef || "Beneficiary account (masked)"),
-      Number(job.payload_json.amount || 0),
-      context,
-    );
-  if (job.provider === "police" && job.action === "assign_cyber_cell")
-    return simulatedPoliceAdapter.assignCyberCell(job.case_id, context);
-  if (job.provider === "police" && job.action === "start_fir_review")
-    return simulatedPoliceAdapter.startFirReview(job.case_id, context);
-  if (job.provider === "police" && job.action === "register_fir")
-    return simulatedPoliceAdapter.registerFir(job.case_id, context);
-  throw new Error(`Unsupported integration job: ${job.provider}.${job.action}`);
-}
-
 export async function processIntegrationJobs(
   workerName: string,
   batchSize = 10,
@@ -59,19 +41,12 @@ export async function processIntegrationJobs(
   for (const value of data || []) {
     const job = value as Job;
     try {
-      const adapterResult = await executeJob(job);
-      const externalReference = String(
-        (adapterResult as Record<string, unknown>).providerReference ||
-          (adapterResult as Record<string, unknown>).assignmentReference ||
-          (adapterResult as Record<string, unknown>).reviewReference ||
-          (adapterResult as Record<string, unknown>).firNumber ||
-          "SIMULATED-COMPLETE",
-      );
+      const executed = await executeIntegrationAction(job);
       const { error: updateError } = await supabase
         .from("integration_jobs")
         .update({
           status: "succeeded",
-          external_reference: externalReference,
+          external_reference: executed.externalReference,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           locked_at: null,
@@ -84,11 +59,16 @@ export async function processIntegrationJobs(
         event_type: "INTEGRATION_JOB_COMPLETED",
         actor_type: "system",
         payload_json: {
-          label: "Simulated external response received",
+          label:
+            executed.binding === "http"
+              ? "External response received"
+              : "Simulated external response received",
           provider: job.provider,
           action: job.action,
-          externalReference,
-          simulated: true,
+          externalReference: executed.externalReference,
+          adapter: executed.binding,
+          simulated: executed.binding === "simulated",
+          http: executed.binding === "http",
         },
         previous_state_json: { integration_status: "processing" },
         new_state_json: { integration_status: "succeeded" },
@@ -102,7 +82,9 @@ export async function processIntegrationJobs(
       });
       results.push({ id: job.id, status: "succeeded" });
     } catch (jobError) {
-      const exhausted = job.attempt_count >= job.max_attempts;
+      const exhausted =
+        isPermanentIntegrationError(jobError) ||
+        job.attempt_count >= job.max_attempts;
       const retryMinutes = Math.min(
         30,
         2 ** Math.max(0, job.attempt_count - 1),
@@ -160,7 +142,7 @@ export async function processOutboxEvents(workerName: string, batchSize = 25) {
         .single();
       if (sourceError || !source)
         throw new Error("Persisted source event is unavailable.");
-      const notification = await simulatedNotificationAdapter.send(
+      const notification = await getNotificationAdapter().send(
         {
           recipient: "case-citizen",
           template: event.event_type,

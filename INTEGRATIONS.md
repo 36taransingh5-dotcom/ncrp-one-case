@@ -1,19 +1,25 @@
 # Integration boundaries
 
-No real NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker or inter-agency system is connected. All external identities, references and responses are synthetic or simulated and the UI states this independently of the demo content.
+No official NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker or inter-agency production system is connected. All people, institutions, identifiers and amounts in this prototype remain synthetic. HTTP mode talks to **configured partner or sandbox endpoints**, not live government or bank cores.
 
-`lib/adapters/contracts.ts` owns the replaceable bank, police and fraud-reporting interfaces; `lib/adapters/simulated.ts` is the deterministic development implementation. Application state never depends on an adapter's in-memory state. Commands persist a job first, and `lib/jobs/process.ts` later invokes the adapter and records its result.
+`lib/adapters/contracts.ts` owns the replaceable bank, police, reporting and notification interfaces. `lib/adapters/simulated.ts` is the in-process development implementation. `lib/adapters/http.ts` is the authenticated HTTP implementation. `lib/adapters/index.ts` binds each provider at runtime. Application state never depends on an adapter's in-memory state. Commands persist a job first, and `lib/jobs/process.ts` later invokes the adapter and records its result.
 
-| Boundary                        | Current adapter                 | Durable behavior                                | Production replacement               |
-| ------------------------------- | ------------------------------- | ----------------------------------------------- | ------------------------------------ |
-| NCRP / 1930 / CFCFRMS           | Simulated reporting             | External reference in job result                | Approved authenticated complaint API |
-| Bank / UPI                      | Simulated bank                  | Freeze job, idempotency key, retries, reference | Approved participant-bank gateway    |
-| Police / FIR                    | Simulated police                | Assignment/review/registration jobs             | State police integration             |
-| Evidence malware scan           | Interface-ready validation hook | MIME/signature/hash retained                    | Approved asynchronous scanner        |
-| Notifications                   | Persistent in-app notifications | Atomic record + outbox event                    | Transactional email adapter          |
-| Telecom / identity / DigiLocker | Not connected                   | Explicitly out of scope                         | Future approved adapters only        |
+| Boundary                        | Current adapter                    | Durable behavior                                      | Production replacement               |
+| ------------------------------- | ---------------------------------- | ----------------------------------------------------- | ------------------------------------ |
+| NCRP / 1930 / CFCFRMS           | Simulated or HTTP `/v1/complaints` | Case-created job, external reference, retries         | Approved authenticated complaint API |
+| Bank / UPI                      | Simulated or HTTP freeze/lookup    | Freeze job, idempotency key, status poll, webhook ack | Approved participant-bank gateway    |
+| Police / FIR                    | Simulated or HTTP assignment/FIR   | Assignment/review/registration jobs                   | State police integration             |
+| Evidence malware scan           | Interface-ready validation hook    | MIME/signature/hash retained                          | Approved asynchronous scanner        |
+| Notifications                   | Simulated or HTTP `/v1/messages`   | Outbox send with idempotency key                      | Transactional email adapter          |
+| Telecom / identity / DigiLocker | Not connected                      | Explicitly out of scope                               | Future approved adapters only        |
 
-Provider implementations must preserve idempotency keys, classify retryable/permanent errors, enforce timeouts, return external reference IDs and support reconciliation. They must never log evidence bytes, complaint narratives, session tokens or unmasked personal/financial data.
+Set `NCRP_INTEGRATION_MODE=http` plus per-provider base URL and API key (or `NCRP_SANDBOX_SECRET` with `NCRP_APP_BASE_URL`) to send real HTTP. Missing provider credentials keep that provider on the simulated adapter. Default remains `simulated` so local tests and the SQLite demo stay offline.
+
+The in-app sandbox at `/api/integrations/sandbox/{bank,police,reporting,notification}/v1/...` is a labelled synthetic partner. It requires the provider API key or sandbox secret in production. It returns deterministic references from the `Idempotency-Key` header and never talks to a real bank or police system.
+
+Inbound callbacks POST to `/api/integrations/webhook` with `X-NCRP-Signature: sha256=<hex>` over the raw body using `NCRP_WEBHOOK_SECRET`. Duplicate `eventId` values replay as HTTP 200. Callbacks append case events; they do not mutate fund totals or register an FIR by themselves.
+
+Provider implementations must preserve idempotency keys, classify retryable/permanent errors, enforce timeouts, return external reference IDs and support reconciliation. They must never log evidence bytes, complaint narratives, session tokens or unmasked personal/financial data. `GET /api/health` reports the resolved adapter binding per provider without URLs or secrets.
 
 # OpenAI case intelligence
 

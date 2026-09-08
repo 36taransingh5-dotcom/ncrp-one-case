@@ -6,10 +6,7 @@ import { classifyIncident } from "@/lib/ai/intake";
 import { reconcileMovements } from "@/lib/domain/money";
 import { assertTransition } from "@/lib/domain/state-machine";
 import { calculateSlaTiming } from "@/lib/domain/sla";
-import {
-  simulatedBankAdapter,
-  simulatedPoliceAdapter,
-} from "@/lib/adapters/simulated";
+import { getBankAdapter, getPoliceAdapter } from "@/lib/adapters";
 import { logEvent, logFailure } from "@/lib/observability";
 
 const id = () => crypto.randomUUID();
@@ -201,6 +198,7 @@ export function getCaseByPublicId(
       "SELECT * FROM notifications WHERE case_id=? ORDER BY created_at DESC",
     ),
     sla: getSlaSnapshot(caseId),
+    integrationJobs: [],
     ...(includeAudits
       ? {
           audits: list(
@@ -469,10 +467,10 @@ export async function secureAdditionalFunds(
   if (!candidate)
     throw new Error("No matching traceable fund movement remains.");
   const adapterResult = await callAdapter(caseId, "bank.request_freeze", () =>
-    simulatedBankAdapter.requestFreeze(caseId, "ICICI ••1834", amount),
+    getBankAdapter().requestFreeze(caseId, "ICICI ••1834", amount),
   );
   if (!adapterResult.accepted)
-    throw new Error("The simulated bank adapter declined the freeze request.");
+    throw new Error("The bank adapter declined the freeze request.");
   const before = {
     secured_amount: caseRow.secured_amount,
     tracing_amount: caseRow.tracing_amount,
@@ -579,7 +577,7 @@ export async function executeOperatorAction(
       )
       .get(caseId) as { transaction_ref: string } | undefined;
     adapter = await callAdapter(caseId, "bank.identify_beneficiary", () =>
-      simulatedBankAdapter.identifyBeneficiaryBank(
+      getBankAdapter().identifyBeneficiaryBank(
         caseId,
         transaction?.transaction_ref || `SIM-INTAKE-${caseId.slice(-6)}`,
       ),
@@ -605,7 +603,7 @@ export async function executeOperatorAction(
     if (!movement)
       throw new Error("No traceable funds are available for a freeze request.");
     adapter = await callAdapter(caseId, "bank.request_freeze", () =>
-      simulatedBankAdapter.requestFreeze(
+      getBankAdapter().requestFreeze(
         caseId,
         movement.destination_identifier_masked ||
           "Beneficiary account pending identification",
@@ -615,19 +613,19 @@ export async function executeOperatorAction(
   }
   if (action.type === "ASSIGN_CYBER_CELL")
     adapter = await callAdapter(caseId, "police.assign_cyber_cell", () =>
-      simulatedPoliceAdapter.assignCyberCell(caseId),
+      getPoliceAdapter().assignCyberCell(caseId),
     );
   if (action.type === "START_INVESTIGATION")
     adapter = await callAdapter(caseId, "police.assign_cyber_cell", () =>
-      simulatedPoliceAdapter.assignCyberCell(caseId),
+      getPoliceAdapter().assignCyberCell(caseId),
     );
   if (action.type === "START_FIR_REVIEW")
     adapter = await callAdapter(caseId, "police.start_fir_review", () =>
-      simulatedPoliceAdapter.startFirReview(caseId),
+      getPoliceAdapter().startFirReview(caseId),
     );
   if (action.type === "REGISTER_FIR")
     adapter = await callAdapter(caseId, "police.register_fir", () =>
-      simulatedPoliceAdapter.registerFir(caseId),
+      getPoliceAdapter().registerFir(caseId),
     );
   db.exec("BEGIN");
   try {

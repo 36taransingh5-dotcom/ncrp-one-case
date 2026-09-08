@@ -8,6 +8,7 @@ import {
   listOperationsCases,
 } from "@/lib/repository";
 import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
+import { integrationUsesHttp } from "@/lib/adapters";
 export const dynamic = "force-dynamic";
 export default async function Operations() {
   const local = isLocalBackend();
@@ -32,6 +33,7 @@ export default async function Operations() {
       localDemo={isDemoAccessEnabled()}
       supportsTracing={!local}
       institutions={institutions}
+      httpIntegrations={integrationUsesHttp()}
     />
   );
 }

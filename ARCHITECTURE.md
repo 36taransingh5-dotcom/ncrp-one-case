@@ -13,7 +13,10 @@ flowchart LR
   R --> C
   X --> W[Authenticated worker]
   W --> J[Durable integration jobs]
-  J --> S[Replaceable simulated adapters]
+  J --> S[Simulated or HTTP adapters]
+  S --> P2[Partner or in-app sandbox]
+  P2 --> H[Signed webhook callbacks]
+  H --> N
   N --> B[Private Storage bucket]
   B --> U[60-second signed download]
 ```
@@ -40,4 +43,4 @@ Citizen clients subscribe to Postgres changes for their authorized case events. 
 
 ## Durable work
 
-External requests are inserted into `integration_jobs` in the same transaction as the initiating command. Workers claim rows using `FOR UPDATE SKIP LOCKED`, pass work to adapter contracts, record external references and retry with bounded exponential backoff. Expired leases are recovered automatically. Case events also create `outbox_events`; the worker verifies the persisted source before marking publication complete. Supabase Realtime distributes committed database events across application instances.
+External requests are inserted into `integration_jobs` in the same transaction as the initiating command. Workers claim rows using `FOR UPDATE SKIP LOCKED`, pass work to adapter contracts, record external references and retry with bounded exponential backoff. Permanent adapter errors fail the job immediately; retryable timeouts and 5xx responses back off. Expired leases are recovered automatically. Case events also create `outbox_events`; the worker verifies the persisted source before marking publication complete. Case creation and beneficiary identification enqueue reporting and bank jobs automatically. Signed partner callbacks are stored in `integration_webhook_receipts` before they append case events. Supabase Realtime distributes committed database events across application instances.

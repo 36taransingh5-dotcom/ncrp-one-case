@@ -7,8 +7,9 @@ import { createSupabaseServerClient } from "./server";
 import { processIntegrationJobs } from "@/lib/jobs/process";
 import { logFailure } from "@/lib/observability";
 
-/** Commands that queue a simulated bank/police integration job. */
+/** Commands that queue a bank/police/reporting integration job. */
 const JOB_QUEUEING_ACTIONS = new Set([
+  "IDENTIFY_BENEFICIARY_BANK",
   "SEND_FREEZE_REQUEST",
   "ASSIGN_CYBER_CELL",
   "START_FIR_REVIEW",
@@ -91,6 +92,7 @@ export async function getSupabaseCaseDetail(
     fir,
     notifications,
     audits,
+    jobs,
   ] = await Promise.all([
     supabase
       .from("citizens")
@@ -143,6 +145,13 @@ export async function getSupabaseCaseDetail(
           .eq("resource_id", caseId)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("integration_jobs")
+      .select(
+        "id,provider,action,status,external_reference,attempt_count,max_attempts,last_error,created_at,completed_at,updated_at",
+      )
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: false }),
   ]);
   for (const result of [
     citizen,
@@ -155,6 +164,7 @@ export async function getSupabaseCaseDetail(
     fir,
     notifications,
     audits,
+    jobs,
   ]) {
     if (result.error)
       fail(result.error, "Related case data could not be loaded.");
@@ -209,6 +219,7 @@ export async function getSupabaseCaseDetail(
     fir: (fir.data || {}) as Row,
     notifications: (notifications.data || []) as Row[],
     sla: getSla(eventRows),
+    integrationJobs: (jobs.data || []) as Row[],
     ...(includeAudits
       ? {
           audits: (audits.data || []).map((row: Row) => ({
@@ -276,6 +287,11 @@ export async function createSupabaseCase(input: {
     p_institution_details: input.institutionDetails || null,
   });
   if (error) fail(error, "Case could not be created.");
+  try {
+    await processIntegrationJobs(`inline:create:${crypto.randomUUID()}`, 10);
+  } catch (jobError) {
+    logFailure("intake.inline_job_processing_failed", jobError);
+  }
   return { publicId: String(data) };
 }
 
@@ -296,7 +312,7 @@ export async function executeSupabaseCommand(input: {
   });
   if (error) fail(error, "Operator command failed.");
   // Vercel's cron ceiling (once/day on Hobby) is far too slow for a citizen
-  // to see a simulated bank/police response in the same session, so drain
+  // to see a bank/police response in the same session, so drain
   // the freshly queued job inline. Best-effort: on failure the job stays
   // queued and the daily cron (or a manual worker run) still picks it up.
   if (JOB_QUEUEING_ACTIONS.has(input.action)) {

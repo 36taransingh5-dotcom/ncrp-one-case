@@ -11,6 +11,10 @@ const commands = fs.readFileSync(
   "supabase/migrations/005_domain_functions.sql",
   "utf8",
 );
+const httpIntegrations = fs.readFileSync(
+  "supabase/migrations/012_http_integrations.sql",
+  "utf8",
+);
 
 test("RLS scopes citizen case, evidence, event, and notification reads", () => {
   assert.match(rls, /cases_select[\s\S]*owns_case\(id\)/);
@@ -46,4 +50,18 @@ test("operator commands are idempotent and concurrency guarded", () => {
     commands,
     /if v_case\.version <> p_expected_version then raise exception 'CASE_CHANGED'/,
   );
+});
+
+test("inbound webhooks are operator-readable and jobs enqueue from case events", () => {
+  assert.match(
+    httpIntegrations,
+    /create policy webhook_receipts_operator_select/,
+  );
+  assert.match(httpIntegrations, /using \(public\.is_operator\(\)\)/);
+  assert.doesNotMatch(
+    httpIntegrations,
+    /grant insert on public\.integration_webhook_receipts/,
+  );
+  assert.match(httpIntegrations, /create_external_complaint/);
+  assert.match(httpIntegrations, /identify_beneficiary/);
 });
