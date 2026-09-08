@@ -16,9 +16,14 @@ export default function AuthPage() {
   return (
     <>
       <PrototypeNotice />
-      <main className="shell" style={{ maxWidth: 620, paddingTop: 8 }}>
+      <div className="shell">
         <SiteNav links={[{ href: "/", label: "Home" }]} />
-        <section className="card section" style={{ marginTop: 28 }}>
+      </div>
+      <main
+        className="shell"
+        style={{ maxWidth: 620, paddingTop: 28, paddingBottom: 56 }}
+      >
+        <section className="card section">
           <div className="eyebrow">Secure citizen access</div>
           <h1>Create or access your account</h1>
           <p>

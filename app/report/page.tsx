@@ -7,13 +7,15 @@ export default function ReportPage() {
   return (
     <>
       <PrototypeNotice extra="This form does not file an official complaint." />
-      <main className="shell report-shell">
+      <div className="shell">
         <SiteNav
           links={[
             { href: "/", label: "Home" },
             { href: "/cases", label: "Your cases" },
           ]}
         />
+      </div>
+      <main className="shell report-shell">
         <div className="card section report-card">
           <span className="eyebrow">Report financial cyber fraud</span>
           <h1>Tell us what happened.</h1>
