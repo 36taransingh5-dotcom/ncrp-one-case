@@ -19,7 +19,15 @@ test("operator command centre summarises the selected case without inventing AI 
     command.getByText("HDFC Bank must respond to freeze request"),
   ).toBeVisible();
   await expect(
+    command.getByText("HDFC Bank — fraud response team"),
+  ).toBeVisible();
+  await expect(
     command.getByText("waiting for bank acknowledgement"),
+  ).toBeVisible();
+  await expect(
+    command.getByText(
+      /min remaining|h remaining|Overdue|Waiting|Response received|No active SLA/,
+    ),
   ).toBeVisible();
   await expect(command.getByText("No AI recommendation yet")).toBeVisible();
   await expect(command.getByText("27 min remaining")).toHaveCount(0);

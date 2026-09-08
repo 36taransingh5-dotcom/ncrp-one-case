@@ -96,9 +96,38 @@ test("operator summary names blockers from case state and reuses an existing AI 
     "case resolved",
   );
   assert.equal(
+    buildOperatorCaseSummary(
+      detail({
+        events: ["BENEFICIARY_BANK_IDENTIFIED"],
+        sla: "not_applicable",
+      }),
+    ).blocker,
+    "police assignment pending",
+  );
+  assert.equal(
     buildOperatorCaseSummary(detail(), {
       recommendedAction: "REQUEST_TRANSACTION_REFERENCE",
     }).aiRecommendation,
     "Request beneficiary transaction reference",
+  );
+});
+
+test("operator summary uses live SLA state and a neutral owner fallback", () => {
+  assert.equal(
+    buildOperatorCaseSummary(detail({ sla: "not_applicable", ownerName: "" }))
+      .owner,
+    "Not assigned yet",
+  );
+  assert.equal(
+    buildOperatorCaseSummary(detail({ sla: "not_applicable" })).sla,
+    "No active SLA",
+  );
+  assert.equal(
+    buildOperatorCaseSummary(detail({ sla: "overdue" })).sla,
+    "Overdue",
+  );
+  assert.equal(
+    buildOperatorCaseSummary(detail({ sla: "met" })).sla,
+    "Response received",
   );
 });
