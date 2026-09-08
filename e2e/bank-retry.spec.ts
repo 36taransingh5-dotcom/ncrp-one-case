@@ -93,9 +93,11 @@ test("bank freeze retry demo recovers without losing the case or showing HTTP 50
     citizen.getByText("Bank acknowledgement received").first(),
   ).toBeVisible({ timeout: 15_000 });
   await expect(
-    citizen.getByText(
-      "The bank confirmed it received the freeze request. You do not need to start over.",
-    ),
+    citizen
+      .getByText(
+        "The bank confirmed it received the freeze request. You do not need to start over.",
+      )
+      .first(),
   ).toBeVisible();
   await expect(citizen.locator("body")).not.toContainText("HTTP 503");
   await expect(citizen.locator("body")).not.toContainText(
