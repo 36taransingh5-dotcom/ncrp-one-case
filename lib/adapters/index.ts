@@ -28,6 +28,7 @@ export {
   adapterStatusLabel,
   notificationStatusLabel,
   resendConfigured,
+  getResendFromAddress,
 } from "./config";
 export type {
   IntegrationMode,

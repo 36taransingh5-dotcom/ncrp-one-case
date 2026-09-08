@@ -8,8 +8,12 @@ import {
 } from "../lib/adapters/errors";
 import { integrationFetch } from "../lib/adapters/http-client";
 import {
+  RESEND_TEST_FROM,
   resolveIntegrationMode,
+  resolveNotificationProvider,
   resolveProviderBinding,
+  resolveResendFromAddress,
+  resendApiKeyPresent,
 } from "../lib/adapters/config";
 import { executeIntegrationAction } from "../lib/adapters/execute";
 import { createHttpBankAdapter } from "../lib/adapters/http";
@@ -275,4 +279,26 @@ test("email templates omit amounts and account data", () => {
 test("DigiLocker and API Setu stay disabled without credentials", () => {
   assert.equal(getDigiLockerMode(), "disabled");
   assert.equal(getApiSetuMode(), "disabled");
+});
+
+test("Resend binds from API key alone and defaults the test sender", () => {
+  assert.equal(resendApiKeyPresent(""), false);
+  assert.equal(resendApiKeyPresent("re_test_key"), true);
+  assert.equal(resolveResendFromAddress(), RESEND_TEST_FROM);
+  assert.equal(resolveResendFromAddress("", "  "), RESEND_TEST_FROM);
+  assert.equal(
+    resolveResendFromAddress("", "Alerts <ops@example.org>"),
+    "Alerts <ops@example.org>",
+  );
+  assert.equal(
+    resolveResendFromAddress("NCRP <cases@ncrp.example>", "other@example.org"),
+    "NCRP <cases@ncrp.example>",
+  );
+  assert.equal(resolveNotificationProvider("", true, "http"), "resend");
+  assert.equal(resolveNotificationProvider("http", true, "http"), "http");
+  assert.equal(
+    resolveNotificationProvider("resend", false, "http"),
+    "simulated",
+  );
+  assert.equal(resolveNotificationProvider("", false, "http"), "http");
 });

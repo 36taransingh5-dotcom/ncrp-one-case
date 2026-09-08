@@ -26,7 +26,7 @@ Provider implementations must preserve idempotency keys, classify retryable/perm
 
 # Transactional email
 
-Set `RESEND_API_KEY` and `RESEND_FROM` (and optionally `NCRP_NOTIFICATION_MODE=resend`). The outbox worker sends mail only for evidence requested, funds secured, freeze acknowledgement, cyber-cell assignment, FIR registered and case resolved. Templates never include amounts or account numbers. Email failure retries on the outbox and never rolls back the case command. Delivery rows are stored in `email_deliveries` when migration `013` has been applied.
+Set `RESEND_API_KEY` (Vercel Resend Marketplace injects this). Optional `RESEND_FROM` / `RESEND_FROM_EMAIL` / `EMAIL_FROM` override the default test sender `NCRP One Case <onboarding@resend.dev>`. The outbox worker sends mail only for evidence requested, funds secured, freeze acknowledgement, cyber-cell assignment, FIR registered and case resolved. Templates never include amounts or account numbers. Email failure retries on the outbox and never rolls back the case command. Delivery rows are stored in `email_deliveries` when migration `013` has been applied. Until a domain is verified, Resend delivers the test sender only to the account owner.
 
 # DigiLocker and API Setu
 

@@ -126,17 +126,54 @@ export function getProviderBinding(
   );
 }
 
+/** Resend's shared test sender. Delivers to the Resend account owner until a domain is verified. */
+export const RESEND_TEST_FROM = "NCRP One Case <onboarding@resend.dev>";
+
+export function resendApiKeyPresent(apiKey: string) {
+  return Boolean(apiKey.trim());
+}
+
+export function resolveResendFromAddress(
+  ...candidates: Array<string | undefined>
+) {
+  for (const value of candidates) {
+    const trimmed = value?.trim() || "";
+    if (trimmed) return trimmed;
+  }
+  return RESEND_TEST_FROM;
+}
+
+export function resolveNotificationProvider(
+  explicitMode: string,
+  hasResendKey: boolean,
+  httpBinding: Exclude<ProviderBinding, "resend">,
+): NotificationProvider {
+  const explicit = explicitMode.toLowerCase();
+  if (explicit === "simulated") return "simulated";
+  if (explicit === "resend") return hasResendKey ? "resend" : "simulated";
+  if (explicit === "http") return httpBinding;
+  if (hasResendKey) return "resend";
+  return httpBinding;
+}
+
 export function resendConfigured() {
-  return Boolean(env("RESEND_API_KEY") && env("RESEND_FROM"));
+  return resendApiKeyPresent(env("RESEND_API_KEY"));
+}
+
+export function getResendFromAddress() {
+  return resolveResendFromAddress(
+    env("RESEND_FROM"),
+    env("RESEND_FROM_EMAIL"),
+    env("EMAIL_FROM"),
+  );
 }
 
 export function getNotificationProvider(): NotificationProvider {
-  const explicit = env("NCRP_NOTIFICATION_MODE").toLowerCase();
-  if (explicit === "simulated") return "simulated";
-  if (explicit === "resend") return resendConfigured() ? "resend" : "simulated";
-  if (explicit === "http") return getProviderBinding("notification");
-  if (resendConfigured()) return "resend";
-  return getProviderBinding("notification");
+  return resolveNotificationProvider(
+    env("NCRP_NOTIFICATION_MODE"),
+    resendConfigured(),
+    getProviderBinding("notification"),
+  );
 }
 
 export function getIntegrationSnapshot() {

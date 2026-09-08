@@ -48,7 +48,7 @@ npm run build
    Set `NCRP_DEMO_ACCESS_ENABLED=true` only for a clearly labelled judging deployment that should expose one-click access to those two synthetic accounts. Their passwords remain server-only.
 7. Run the worker route on a recurring schedule with `Authorization: Bearer $NCRP_WORKER_SECRET`.
 
-Verify a fresh deployment with `GET /api/health` and the operator page `/integrations`. Production should return `{ "status": "ok", "backend": "supabase" }` and, when the worker secret is set, `"integrations": { "mode": "http" }`. Email is LIVE only when `RESEND_API_KEY` and `RESEND_FROM` are set. Reporting and beneficiary-bank jobs enqueue from the app even if migration `012` has not been applied yet.
+Verify a fresh deployment with `GET /api/health` and the operator page `/integrations`. Production should return `{ "status": "ok", "backend": "supabase" }` and, when the worker secret is set, `"integrations": { "mode": "http" }`. Email is LIVE when `RESEND_API_KEY` is set (Vercel Resend Marketplace). Reporting and beneficiary-bank jobs enqueue from the app even if migration `012` has not been applied yet.
 
 Run the full two-browser golden path against a deployment with:
 

@@ -83,7 +83,7 @@ export function getIntegrationStatusRows(): IntegrationStatusRow[] {
           : notificationStatusLabel() === "SANDBOX"
             ? "Notification HTTP sandbox is bound. No live inbox."
             : notificationStatusLabel() === "NOT CONFIGURED"
-              ? "Set NCRP_NOTIFICATION_MODE=resend, RESEND_API_KEY and RESEND_FROM."
+              ? "RESEND_API_KEY is not set. Vercel Resend Marketplace injects this key."
               : "In-process simulated adapter. No live inbox.",
     },
     {

@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import type { NotificationAdapter } from "./contracts";
 import { PermanentIntegrationError, RetryableIntegrationError } from "./errors";
 import { emailContainsSensitiveFinancialData } from "./email-templates";
+import { getResendFromAddress } from "./config";
 import { logEvent } from "@/lib/observability";
 
 export function createResendNotificationAdapter(input?: {
@@ -9,7 +10,7 @@ export function createResendNotificationAdapter(input?: {
   from?: string;
 }): NotificationAdapter {
   const apiKey = input?.apiKey || process.env.RESEND_API_KEY?.trim() || "";
-  const from = input?.from || process.env.RESEND_FROM?.trim() || "";
+  const from = input?.from?.trim() || getResendFromAddress();
   return {
     async send(message, context) {
       if (!apiKey || !from)
