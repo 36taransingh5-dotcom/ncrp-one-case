@@ -57,8 +57,8 @@ export default async function Home() {
               Report once. Government coordinates the rest.
             </span>
             <h1>
-              You report cyber fraud <span className="accent">once</span>.
-              The system does the <span className="accent">running</span>.
+              You report cyber fraud <span className="accent">once</span>. The
+              system does the <span className="accent">running</span>.
             </h1>
             <p>
               Today a victim repeats their story to a portal, a bank and a

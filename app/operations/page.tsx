@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { currentSession } from "@/lib/auth";
 import { ensureDemoData } from "@/lib/demo";
 import { OperationsClient } from "@/components/OperationsClient";
-import { getCaseDetail, listInstitutions, listOperationsCases } from "@/lib/repository";
+import {
+  getCaseDetail,
+  listInstitutions,
+  listOperationsCases,
+} from "@/lib/repository";
 import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 export const dynamic = "force-dynamic";
 export default async function Operations() {

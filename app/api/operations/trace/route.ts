@@ -20,7 +20,9 @@ export async function POST(request: Request) {
         // rejects them even though Postgres's uuid column accepts them fine.
         institutionId: z
           .string()
-          .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)
+          .regex(
+            /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+          )
           .optional(),
         expectedVersion: z.number().int().nonnegative().default(0),
         idempotencyKey: z.string().uuid().optional(),

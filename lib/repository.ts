@@ -164,7 +164,11 @@ export async function traceCaseMovement(input: {
   });
 }
 
-export type Institution = { id: string; name: string; short_code: string | null };
+export type Institution = {
+  id: string;
+  name: string;
+  short_code: string | null;
+};
 
 export async function listInstitutions(): Promise<Institution[]> {
   if (isLocalBackend())

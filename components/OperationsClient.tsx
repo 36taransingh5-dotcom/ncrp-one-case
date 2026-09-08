@@ -619,9 +619,9 @@ export function OperationsClient({
               <div className="label">Trace funds</div>
               <h2 style={{ margin: "6px 0" }}>Split a traced movement</h2>
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                Move part of a traced amount onward to a new account, or
-                confirm part of it as secured or unrecovered. The remainder
-                stays where it was.
+                Move part of a traced amount onward to a new account, or confirm
+                part of it as secured or unrecovered. The remainder stays where
+                it was.
               </p>
               <div className="form">
                 <label>
@@ -637,7 +637,8 @@ export function OperationsClient({
                         value={String(movement.id)}
                       >
                         {String(movement.to_account || "Destination pending")} ·{" "}
-                        {rupee(movement.amount)} · {String(movement.movement_status)}
+                        {rupee(movement.amount)} ·{" "}
+                        {String(movement.movement_status)}
                       </option>
                     ))}
                   </select>
@@ -668,7 +669,8 @@ export function OperationsClient({
                     value={traceStatus}
                     onChange={(event) =>
                       setTraceStatus(
-                        event.target.value as "secured" | "tracing" | "unrecovered",
+                        event.target.value as
+                          "secured" | "tracing" | "unrecovered",
                       )
                     }
                   >
@@ -681,7 +683,9 @@ export function OperationsClient({
                   Destination
                   <select
                     value={traceInstitution}
-                    onChange={(event) => setTraceInstitution(event.target.value)}
+                    onChange={(event) =>
+                      setTraceInstitution(event.target.value)
+                    }
                   >
                     <option value="">Same account</option>
                     {institutions.map((institution) => (
@@ -694,7 +698,9 @@ export function OperationsClient({
                 <button
                   className="btn"
                   onClick={trace}
-                  disabled={Boolean(busy) || !activeTraceMovement || !traceAmount}
+                  disabled={
+                    Boolean(busy) || !activeTraceMovement || !traceAmount
+                  }
                 >
                   {busy === "trace" ? "Writing event…" : "Record split"}
                 </button>
