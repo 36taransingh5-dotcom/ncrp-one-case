@@ -4,6 +4,7 @@ import type {
   NotificationAdapter,
   PoliceAdapter,
 } from "./contracts";
+import { RetryableIntegrationError } from "./errors";
 import { logEvent } from "@/lib/observability";
 const reference = (prefix: string, caseId: string) =>
   `${prefix}-SIM-${caseId.slice(-6)}`;
@@ -29,8 +30,11 @@ export const simulatedBankAdapter: BankAdapter = {
       reference: reference("BENEFICIARY", caseId),
     };
   },
-  async requestFreeze(caseId) {
+  async requestFreeze(caseId, _accountRef, _amount, context) {
     logEvent("adapter.bank.request_freeze", { caseId, adapter: "simulated" });
+    if (context?.demoFreezeRetry && (context.attemptCount || 1) <= 1) {
+      throw new RetryableIntegrationError("Sandbox unavailable", 503);
+    }
     return {
       requestId: reference("FREEZE", caseId),
       accepted: true,

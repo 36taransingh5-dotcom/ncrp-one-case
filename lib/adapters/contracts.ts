@@ -6,6 +6,8 @@ export type FreezeResult = {
 export type IntegrationContext = {
   idempotencyKey: string;
   timeoutMs: number;
+  attemptCount?: number;
+  demoFreezeRetry?: boolean;
 };
 export interface BankAdapter {
   notifyFraud(

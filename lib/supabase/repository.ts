@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
 import { calculateSlaTiming } from "@/lib/domain/sla";
 import { createSupabaseServerClient } from "./server";
+import { createSupabaseAdminClient } from "./admin";
 import { enqueueJobsForCaseEvent } from "@/lib/jobs/enqueue";
 import {
   processIntegrationJobs,
@@ -352,6 +353,42 @@ export async function executeSupabaseCommand(input: {
     });
   }
   return getSupabaseCaseDetail(input.publicCaseId, true);
+}
+
+export async function retrySupabaseFreezeJobs(publicCaseId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: caseRow, error } = await supabase
+    .from("cases")
+    .select("id")
+    .eq("public_case_id", publicCaseId)
+    .maybeSingle();
+  if (error) fail(error, "Case could not be loaded.");
+  if (!caseRow) throw new Error("CASE_NOT_FOUND");
+  const admin = createSupabaseAdminClient();
+  const { data: jobs, error: jobsError } = await admin
+    .from("integration_jobs")
+    .update({
+      next_attempt_at: new Date().toISOString(),
+      locked_at: null,
+      locked_by: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("case_id", caseRow.id)
+    .eq("action", "request_freeze")
+    .in("status", ["pending", "retrying"])
+    .select("id");
+  if (jobsError) fail(jobsError, "Bank retry could not be queued.");
+  if (!jobs?.length) throw new Error("No bank request is waiting to retry.");
+  try {
+    await processIntegrationJobs(`retry:${crypto.randomUUID()}`, 5);
+    await processOutboxEvents(`inline:outbox:${crypto.randomUUID()}`, 10);
+  } catch (jobError) {
+    logFailure("operator.inline_job_processing_failed", jobError, {
+      publicCaseId,
+      action: "RETRY_INTEGRATION_JOBS",
+    });
+  }
+  return getSupabaseCaseDetail(publicCaseId, true);
 }
 
 export async function markSupabaseNotificationsRead(

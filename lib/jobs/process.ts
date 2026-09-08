@@ -8,6 +8,14 @@ import {
 import { resendRequestedWithoutConfig } from "@/lib/adapters/config";
 import { emailTemplateFor } from "@/lib/adapters/email-templates";
 import { recordEmailDelivery, resolveCitizenEmail } from "./email";
+import {
+  freezeAckNotification,
+  isDemoFreezeRetry,
+  isFreezeJob,
+  jobCompletionLabel,
+  retryDelayMs,
+  sanitizeJobError,
+} from "./status";
 import { logEvent, logFailure } from "@/lib/observability";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -49,6 +57,7 @@ export async function processIntegrationJobs(
       const requestId = String(
         executed.result.requestId || executed.externalReference,
       );
+      const freeze = isFreezeJob(job);
       const { error: updateError } = await supabase
         .from("integration_jobs")
         .update({
@@ -58,6 +67,7 @@ export async function processIntegrationJobs(
           updated_at: respondedAt,
           locked_at: null,
           locked_by: null,
+          last_error: null,
           payload_json: {
             ...job.payload_json,
             provider: job.provider,
@@ -75,8 +85,9 @@ export async function processIntegrationJobs(
         event_type: "INTEGRATION_JOB_COMPLETED",
         actor_type: "system",
         payload_json: {
-          label:
-            executed.binding === "http"
+          label: freeze
+            ? jobCompletionLabel(job)
+            : executed.binding === "http"
               ? "External response received"
               : "Simulated external response received",
           provider: job.provider,
@@ -90,6 +101,30 @@ export async function processIntegrationJobs(
         new_state_json: { integration_status: "succeeded" },
         citizen_visible: true,
       });
+      if (freeze) {
+        const { data: caseRow } = await supabase
+          .from("cases")
+          .select("citizen_id")
+          .eq("id", job.case_id)
+          .maybeSingle();
+        if (caseRow?.citizen_id) {
+          const { data: citizen } = await supabase
+            .from("citizens")
+            .select("user_id")
+            .eq("id", caseRow.citizen_id)
+            .maybeSingle();
+          if (citizen?.user_id) {
+            const notice = freezeAckNotification();
+            await supabase.from("notifications").insert({
+              user_id: citizen.user_id,
+              case_id: job.case_id,
+              notification_type: "bank_acknowledged",
+              title: notice.title,
+              body: notice.body,
+            });
+          }
+        }
+      }
       logEvent("integration_job.completed", {
         jobId: job.id,
         caseId: job.case_id,
@@ -101,21 +136,20 @@ export async function processIntegrationJobs(
       const exhausted =
         isPermanentIntegrationError(jobError) ||
         job.attempt_count >= job.max_attempts;
-      const retryMinutes = Math.min(
-        30,
-        2 ** Math.max(0, job.attempt_count - 1),
-      );
+      const demoFreezeRetry = isDemoFreezeRetry(job.payload_json);
+      const delay = retryDelayMs({
+        attemptCount: job.attempt_count,
+        demoFreezeRetry,
+      });
       await supabase
         .from("integration_jobs")
         .update({
           status: exhausted ? "failed" : "retrying",
-          last_error:
-            jobError instanceof Error
-              ? jobError.message.slice(0, 500)
-              : "Unknown error",
-          next_attempt_at: new Date(
-            Date.now() + retryMinutes * 60_000,
-          ).toISOString(),
+          last_error: sanitizeJobError(jobError, {
+            retrying: !exhausted,
+            freeze: isFreezeJob(job),
+          }),
+          next_attempt_at: new Date(Date.now() + delay).toISOString(),
           updated_at: new Date().toISOString(),
           locked_at: null,
           locked_by: null,

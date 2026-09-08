@@ -8,10 +8,7 @@ export default function EmptyOperationsQueue() {
         <section className="card section">
           <div className="eyebrow">My Queue</div>
           <h1>No cases are waiting</h1>
-          <p>
-            New citizen reports and assigned cases will appear here. The queue
-            is backed by persisted PostgreSQL case and assignment records.
-          </p>
+          <p>New citizen reports and assigned cases will appear here.</p>
           <a className="btn secondary" href="/">
             Return home
           </a>

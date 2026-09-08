@@ -13,6 +13,7 @@ export type IntegrationJobInput = {
   action: string;
   payload_json: Record<string, unknown>;
   idempotency_key: string;
+  attempt_count?: number;
 };
 
 function asProvider(value: string): IntegrationProvider {
@@ -46,6 +47,9 @@ export async function executeIntegrationAction(job: IntegrationJobInput) {
   const context = {
     idempotencyKey: job.idempotency_key,
     timeoutMs: getIntegrationTimeoutMs(),
+    attemptCount:
+      job.attempt_count && job.attempt_count > 0 ? job.attempt_count : 1,
+    demoFreezeRetry: Boolean(job.payload_json?.demonstrateRetry),
   };
   const caseId = job.case_id;
   const payload = job.payload_json;

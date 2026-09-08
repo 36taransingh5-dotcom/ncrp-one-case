@@ -7,6 +7,12 @@ import { reconcileMovements } from "@/lib/domain/money";
 import { assertTransition } from "@/lib/domain/state-machine";
 import { calculateSlaTiming } from "@/lib/domain/sla";
 import { getBankAdapter, getPoliceAdapter } from "@/lib/adapters";
+import {
+  enqueueLocalFreezeJob,
+  listLocalIntegrationJobs,
+  markLocalFreezeJobsReady,
+  processLocalIntegrationJobs,
+} from "@/lib/jobs/local";
 import { logEvent, logFailure } from "@/lib/observability";
 
 const id = () => crypto.randomUUID();
@@ -56,7 +62,7 @@ export function getSlaSnapshot(caseId: string): Row {
     return { status: "not_applicable", label: "No active institutional SLA" };
   const response = db
     .prepare(
-      "SELECT occurred_at,event_type FROM case_events WHERE case_id=? AND occurred_at>=? AND event_type IN ('AGENCY_ACKNOWLEDGED','FUNDS_PARTIALLY_SECURED','FUNDS_SECURED') ORDER BY occurred_at LIMIT 1",
+      "SELECT occurred_at,event_type FROM case_events WHERE case_id=? AND occurred_at>=? AND event_type IN ('AGENCY_ACKNOWLEDGED','INTEGRATION_JOB_COMPLETED','FUNDS_PARTIALLY_SECURED','FUNDS_SECURED') ORDER BY occurred_at LIMIT 1",
     )
     .get(caseId, request.occurred_at) as
     { occurred_at: string; event_type: string } | undefined;
@@ -198,7 +204,7 @@ export function getCaseByPublicId(
       "SELECT * FROM notifications WHERE case_id=? ORDER BY created_at DESC",
     ),
     sla: getSlaSnapshot(caseId),
-    integrationJobs: [],
+    integrationJobs: listLocalIntegrationJobs(caseId),
     ...(includeAudits
       ? {
           audits: list(
@@ -536,7 +542,8 @@ export async function secureAdditionalFunds(
 
 export type OperatorAction =
   | { type: "IDENTIFY_BENEFICIARY_BANK" }
-  | { type: "SEND_FREEZE_REQUEST" }
+  | { type: "SEND_FREEZE_REQUEST"; demonstrateRetry?: boolean }
+  | { type: "RETRY_INTEGRATION_JOBS" }
   | { type: "MARK_FUNDS_MOVED" }
   | { type: "MARK_FUNDS_WITHDRAWN" }
   | { type: "ASSIGN_CYBER_CELL" }
@@ -566,6 +573,20 @@ export async function executeOperatorAction(
     action: action.type,
     actorId,
   });
+  if (action.type === "RETRY_INTEGRATION_JOBS") {
+    if (!markLocalFreezeJobsReady(caseId))
+      throw new Error("No bank request is waiting to retry.");
+    await processLocalIntegrationJobs(`retry:${caseId}`, 5);
+    audit(actorId, action.type, caseId, { action, simulated: true });
+    publishCaseUpdate(caseId);
+    logEvent("operator.command.completed", {
+      caseId,
+      publicCaseId,
+      action: action.type,
+      actorId,
+    });
+    return getCaseByPublicId(publicCaseId, true);
+  }
   if (action.type === "IDENTIFY_BENEFICIARY_BANK") {
     if (current !== "REPORTED")
       throw new Error(
@@ -602,14 +623,15 @@ export async function executeOperatorAction(
       | undefined;
     if (!movement)
       throw new Error("No traceable funds are available for a freeze request.");
-    adapter = await callAdapter(caseId, "bank.request_freeze", () =>
-      getBankAdapter().requestFreeze(
-        caseId,
-        movement.destination_identifier_masked ||
-          "Beneficiary account pending identification",
-        Number(movement.amount),
-      ),
-    );
+    if (!action.demonstrateRetry)
+      adapter = await callAdapter(caseId, "bank.request_freeze", () =>
+        getBankAdapter().requestFreeze(
+          caseId,
+          movement.destination_identifier_masked ||
+            "Beneficiary account pending identification",
+          Number(movement.amount),
+        ),
+      );
   }
   if (action.type === "ASSIGN_CYBER_CELL")
     adapter = await callAdapter(caseId, "police.assign_cyber_cell", () =>
@@ -737,6 +759,7 @@ export async function executeOperatorAction(
             label: "Freeze request sent to beneficiary bank",
             amount,
             simulated: true,
+            demonstrateRetry: Boolean(action.demonstrateRetry),
             ...adapter,
           },
           previous: { owner: caseRow.current_owner_name },
@@ -748,6 +771,22 @@ export async function executeOperatorAction(
           "Freeze request sent",
           "The bank holding your money has been asked to stop it from moving again.",
         );
+        if (action.demonstrateRetry) {
+          const destination = db
+            .prepare(
+              "SELECT t.destination_identifier_masked FROM fund_movements fm LEFT JOIN transactions t ON t.id=fm.destination_transaction_id WHERE fm.case_id=? AND fm.movement_status IN ('tracing','moved') ORDER BY fm.occurred_at LIMIT 1",
+            )
+            .get(caseId) as
+            { destination_identifier_masked: string | null } | undefined;
+          enqueueLocalFreezeJob({
+            caseId,
+            accountRef:
+              destination?.destination_identifier_masked ||
+              "Beneficiary account pending identification",
+            amount,
+            demonstrateRetry: true,
+          });
+        }
         break;
       }
       case "MARK_FUNDS_MOVED": {
@@ -1207,6 +1246,8 @@ export async function executeOperatorAction(
     });
     throw error;
   }
+  if (action.type === "SEND_FREEZE_REQUEST" && action.demonstrateRetry)
+    await processLocalIntegrationJobs(`inline:${caseId}`, 5);
   publishCaseUpdate(caseId);
   logEvent("operator.command.completed", {
     caseId,

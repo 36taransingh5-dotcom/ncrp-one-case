@@ -127,6 +127,65 @@ test("persisted evidence, fund actions and automatic SLA escalation remain consi
       ),
       true,
     );
+    const retryCase = createCaseFromIntake({
+      userId: citizen.id,
+      description:
+        "A synthetic caller asked me to move money for an urgent account verification and I transferred funds before checking.",
+      amount: 2100,
+    });
+    await executeOperatorAction(retryCase.publicId, operator.id, {
+      type: "IDENTIFY_BENEFICIARY_BANK",
+    });
+    const demoFrozen = await executeOperatorAction(
+      retryCase.publicId,
+      operator.id,
+      { type: "SEND_FREEZE_REQUEST", demonstrateRetry: true },
+    );
+    const queuedJob = demoFrozen?.integrationJobs?.find(
+      (job) => String(job.action) === "request_freeze",
+    );
+    assert.equal(String(queuedJob?.status), "retrying");
+    assert.equal(
+      String(queuedJob?.last_error),
+      "Bank temporarily unavailable — retry queued",
+    );
+    assert.equal(
+      demoFrozen?.notifications.some((notification) =>
+        /HTTP 503|Sandbox unavailable/i.test(
+          `${notification.title || ""} ${notification.body || ""}`,
+        ),
+      ),
+      false,
+    );
+    const recovered = await executeOperatorAction(
+      retryCase.publicId,
+      operator.id,
+      { type: "RETRY_INTEGRATION_JOBS" },
+    );
+    assert.equal(
+      recovered?.events.some(
+        (event) =>
+          event.event_type === "INTEGRATION_JOB_COMPLETED" &&
+          String((event.payload_json as { label?: string })?.label) ===
+            "Bank acknowledgement received",
+      ),
+      true,
+    );
+    assert.equal(
+      recovered?.notifications.some(
+        (notification) =>
+          notification.title === "Bank acknowledgement received",
+      ),
+      true,
+    );
+    assert.equal(
+      recovered?.notifications.some((notification) =>
+        /HTTP 503|Sandbox unavailable/i.test(
+          `${notification.title || ""} ${notification.body || ""}`,
+        ),
+      ),
+      false,
+    );
     const moved = await executeOperatorAction(created.publicId, operator.id, {
       type: "MARK_FUNDS_MOVED",
     });

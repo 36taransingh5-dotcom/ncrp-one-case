@@ -12,6 +12,8 @@ type RequestOptions = {
   apiKey: string;
   baseUrl: string;
   provider: string;
+  attemptCount?: number;
+  demoFreezeRetry?: boolean;
 };
 
 function joinUrl(baseUrl: string, path: string) {
@@ -41,6 +43,12 @@ export async function integrationFetch<T>(options: RequestOptions): Promise<T> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${options.apiKey}`,
         "Idempotency-Key": options.idempotencyKey,
+        ...(options.demoFreezeRetry
+          ? {
+              "x-ncrp-sandbox-demo": "freeze-retry-once",
+              "x-ncrp-job-attempt": String(options.attemptCount || 1),
+            }
+          : {}),
       },
       body:
         (options.method || "POST") === "GET"
