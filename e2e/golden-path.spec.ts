@@ -15,6 +15,7 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
   await expect(
     operator.getByRole("heading", { name: "Case coordination queue" }),
   ).toBeVisible();
+  await expect(operator.getByText("Integration jobs")).toBeVisible();
 
   const citizenContext = await browser.newContext();
   const citizen = await citizenContext.newPage();
