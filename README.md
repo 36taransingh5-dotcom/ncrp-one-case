@@ -59,3 +59,9 @@ E2E_BASE_URL=https://your-app.example npm run test:e2e
 The service secret is server-only. A production instance never sets `NCRP_BACKEND=local`; when set to `supabase`, any attempted SQLite access fails closed.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [SEEDING.md](SEEDING.md), and [INTEGRATIONS.md](INTEGRATIONS.md).
+
+# AI case intelligence
+
+Citizen intake includes **Analyse report** and explicit acceptance into editable fields. Operations includes an advisory **AI Case Brief** with known/inferred/missing information and a constrained next-action suggestion. Core reporting and domain commands work independently of AI availability.
+
+Configure `OPENAI_API_KEY` as a server-only Vercel Production secret and `OPENAI_MODEL` (default `gpt-4.1-mini`), then redeploy. Never use a `NEXT_PUBLIC_` key. Until a valid key is configured, the analysis controls display a recoverable unavailable message. Live model quality must be verified with the synthetic scenario in the AI brief before claiming a completed AI demo. Evidence analysis and persistent analysis history remain P1.

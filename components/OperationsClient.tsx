@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
+import { AiAnalysis } from "./AiAnalysis";
 
 type Row = Record<string, unknown>;
 type SimpleAction =
@@ -474,6 +475,10 @@ export function OperationsClient({
           </div>
         </section>
         <aside className="aside">
+          <AiAnalysis
+            key={`${selectedCaseId}:${selected.version}`}
+            caseId={selectedCaseId}
+          />
           {message && (
             <div className={messageTone} role="status">
               {message}

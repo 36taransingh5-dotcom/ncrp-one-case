@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DemoEntry } from "./DemoEntry";
+import { AiAnalysis } from "./AiAnalysis";
 
 type IntakePreview = {
   amount: number;
@@ -19,17 +20,20 @@ const defaultDescription =
   "Someone claiming to be from SBI said my KYC was expiring. They asked me to install an APK sent on WhatsApp and ₹48,500 was transferred.";
 
 export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
-  const [description, setDescription] = useState(defaultDescription);
-  const [amount, setAmount] = useState("48500");
+  const [description, setDescription] = useState(
+    localDemo ? defaultDescription : "",
+  );
+  const [amount, setAmount] = useState(localDemo ? "48500" : "");
   const [fraudType, setFraudType] = useState("Bank impersonation / phishing");
   const [paymentChannel, setPaymentChannel] = useState("Bank transfer");
   const [incidentAt, setIncidentAt] = useState(() =>
-    new Date().toISOString().slice(0, 16),
+    localDemo ? new Date().toISOString().slice(0, 16) : "",
   );
-  const [transactionReference, setTransactionReference] =
-    useState("SIM-TXN-48500");
+  const [transactionReference, setTransactionReference] = useState(
+    localDemo ? "SIM-TXN-48500" : "",
+  );
   const [institutionDetails, setInstitutionDetails] = useState(
-    "SBI account → beneficiary account (masked)",
+    localDemo ? "SBI account → beneficiary account (masked)" : "",
   );
   const [preview, setPreview] = useState<IntakePreview | null>(null);
   const [status, setStatus] = useState("");
@@ -184,6 +188,25 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           rows={7}
         />
       </label>
+      <AiAnalysis
+        description={description}
+        onAccept={(result) => {
+          setFraudType(result.fraudType);
+          if (result.reportedAmount !== null)
+            setAmount(String(result.reportedAmount));
+          if (result.paymentChannel) setPaymentChannel(result.paymentChannel);
+          if (result.transactionReferences.length)
+            setTransactionReference(result.transactionReferences[0]);
+          // A source/impersonated institution must never become a beneficiary.
+          if (result.beneficiaryInstitution)
+            setInstitutionDetails(result.beneficiaryInstitution);
+          if (result.incidentDate && result.incidentTime)
+            setIncidentAt(`${result.incidentDate}T${result.incidentTime}`);
+          setStatus(
+            "Suggestions copied. Review and correct the fields below before continuing. Dates and institutions that are unknown must be supplied by you.",
+          );
+        }}
+      />
       <label>
         How much money did you lose? (₹)
         <input

@@ -22,7 +22,13 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
   await citizen.getByRole("button", { name: "Enter citizen demo" }).click();
   await expect(citizen).toHaveURL(/\/case\/NCRP-26-847193/);
   await citizen.goto("/report");
+  await citizen
+    .getByLabel("What happened?")
+    .fill(
+      "Synthetic report: a caller impersonated a bank and induced an unauthorised UPI payment.",
+    );
   await citizen.getByLabel("How much money did you lose? (₹)").fill("6700");
+  await citizen.getByLabel("When did it happen?").fill("2026-09-08T14:15");
   await citizen
     .getByLabel("Transaction reference (optional)")
     .fill("SIM-E2E-6700");
