@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
+import type { Intelligence } from "@/lib/ai/schema";
+import { buildOperatorCaseSummary } from "@/lib/domain/operator-summary";
 import { AiAnalysis } from "./AiAnalysis";
 import { PrototypeNotice } from "./PrototypeNotice";
 
@@ -22,17 +24,17 @@ type SimpleAction =
 const actionLabels: Record<SimpleAction | "REQUEST_EVIDENCE", string> = {
   IDENTIFY_BENEFICIARY_BANK: "Beneficiary bank identified",
   SEND_FREEZE_REQUEST: "Freeze request sent",
-  MARK_FUNDS_MOVED: "Onward movement",
-  MARK_FUNDS_WITHDRAWN: "Withdrawal",
-  ASSIGN_CYBER_CELL: "Cyber Crime Unit assignment",
-  START_INVESTIGATION: "Investigation start",
-  REQUEST_EVIDENCE: "Document request",
-  ACCEPT_EVIDENCE: "Document acceptance",
-  START_FIR_REVIEW: "FIR review",
-  REGISTER_FIR: "FIR registration",
-  ESCALATE_CASE: "Escalation",
-  RESOLVE_CASE: "Resolution",
-  CLOSE_CASE: "Case closure",
+  MARK_FUNDS_MOVED: "Funds traced to another account",
+  MARK_FUNDS_WITHDRAWN: "Funds withdrawn",
+  ASSIGN_CYBER_CELL: "Cyber Crime Unit assigned",
+  START_INVESTIGATION: "Investigation started",
+  REQUEST_EVIDENCE: "Document requested",
+  ACCEPT_EVIDENCE: "Document accepted",
+  START_FIR_REVIEW: "Police review started",
+  REGISTER_FIR: "FIR registered",
+  ESCALATE_CASE: "Case escalated",
+  RESOLVE_CASE: "Case moved to resolution",
+  CLOSE_CASE: "Case closed",
 };
 
 const rupee = (value: unknown) =>
@@ -51,6 +53,51 @@ const when = (value: unknown) =>
     hour12: false,
     timeZone: "Asia/Kolkata",
   }).format(new Date(String(value)));
+
+const movementStatusLabel: Record<string, string> = {
+  tracing: "Being traced",
+  moved: "Traced to another account",
+  secured: "Secured",
+  unrecovered: "Unrecovered",
+  withdrawn: "Unrecovered",
+};
+
+const firStatusLabel: Record<string, string> = {
+  not_started: "Not started",
+  under_review: "Under review",
+  registered: "Registered",
+  declined: "Not registered",
+};
+
+function jobTitle(job: Row) {
+  const action = String(job.action || "").replaceAll("_", " ");
+  if (/freeze/.test(action)) return "Ask the bank to freeze funds";
+  if (/identify/.test(action)) return "Identify the beneficiary bank";
+  if (/notify/.test(action)) return "Notify the bank";
+  if (/assign|cyber/.test(action)) return "Assign the cyber cell";
+  if (/\bfir\b/.test(action)) return "Police review";
+  if (/complaint/.test(action)) return "File the official complaint";
+  return action;
+}
+
+function jobStatusLabel(status: unknown) {
+  switch (String(status || "")) {
+    case "pending":
+    case "queued":
+      return "Waiting for response";
+    case "processing":
+      return "In progress";
+    case "retrying":
+      return "Retry queued";
+    case "succeeded":
+    case "completed":
+      return "Completed";
+    case "failed":
+      return "Could not complete";
+    default:
+      return String(status || "Unknown").replaceAll("_", " ");
+  }
+}
 
 type Institution = { id: string; name: string; short_code: string | null };
 
@@ -85,11 +132,21 @@ export function OperationsClient({
   );
   const [busy, setBusy] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [aiBrief, setAiBrief] = useState<Intelligence | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const commandKeys = useRef(new Map<string, string>());
   const selected = detail.case as Row;
   const fir = detail.fir as Row;
   const selectedCaseId = String(selected.public_case_id);
   const isGolden = selectedCaseId === "NCRP-26-847193";
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const command = buildOperatorCaseSummary(detail, {
+    nowMs,
+    recommendedAction: aiBrief?.recommendedAction ?? null,
+  });
   const visibleRows = useMemo(
     () =>
       rows.filter((row) => {
@@ -138,6 +195,7 @@ export function OperationsClient({
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return fail(data.error || "Case detail could not be loaded.");
+    setAiBrief(null);
     setDetail(data);
   };
   const secure = async (amount = 6700) => {
@@ -165,7 +223,7 @@ export function OperationsClient({
     commandKeys.current.delete(keyName);
     updateDetail(
       data,
-      `Recorded ${rupee(amount)} as secured. The movement, event, audit record and citizen notification were persisted and broadcast live.`,
+      `Recorded ${rupee(amount)} as secured. The citizen can see this now.`,
     );
   };
   const traceableMovements = detail.movements.filter((movement) =>
@@ -181,7 +239,7 @@ export function OperationsClient({
     (movement) => String(movement.id) === traceMovementId,
   );
   const trace = async () => {
-    if (!activeTraceMovement) return fail("Choose a traced movement first.");
+    if (!activeTraceMovement) return fail("Choose a traced amount first.");
     const amount = Number(traceAmount);
     if (!Number.isInteger(amount) || amount <= 0)
       return fail("Enter a split amount greater than zero.");
@@ -220,7 +278,7 @@ export function OperationsClient({
     const destination = institutions.find((i) => i.id === traceInstitution);
     updateDetail(
       data,
-      `${rupee(amount)} ${traceStatus === "secured" ? "secured" : traceStatus === "unrecovered" ? "marked unrecovered" : "traced onward"}${destination ? ` at ${destination.name}` : ""}. The citizen's money trail updated live.`,
+      `${rupee(amount)} ${traceStatus === "secured" ? "secured" : traceStatus === "unrecovered" ? "marked unrecovered" : "traced to another account"}${destination ? ` at ${destination.name}` : ""}. The citizen can see this now.`,
     );
   };
   const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
@@ -257,7 +315,7 @@ export function OperationsClient({
     commandKeys.current.delete(keyName);
     updateDetail(
       data,
-      `${actionLabels[action]} recorded. The citizen's case updated live.`,
+      `${actionLabels[action]} recorded. The citizen can see this now.`,
     );
   };
   const reset = async () => {
@@ -301,7 +359,7 @@ export function OperationsClient({
           !hasTraceableMovement,
       ],
       [
-        "Mark funds moved",
+        "Funds traced to another account",
         "MARK_FUNDS_MOVED",
         !detail.movements.some(
           (movement) => movement.movement_status === "tracing",
@@ -347,11 +405,8 @@ export function OperationsClient({
             <div className="crumb">
               Operations console · signed in as {operatorName}
             </div>
-            <h1>Case coordination queue</h1>
-            <div>
-              Every change is a validated domain action, never a direct status
-              edit.
-            </div>
+            <h1>Cases</h1>
+            <div>Follow the money, the next action, and who owns it.</div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <a className="btn secondary" href="/integrations">
@@ -381,8 +436,8 @@ export function OperationsClient({
           <div className="card section">
             <div className="case-title">
               <div>
-                <div className="label">Prioritized cases</div>
-                <h2 style={{ margin: "4px 0 0" }}>Live case queue</h2>
+                <div className="label">Open cases</div>
+                <h2 style={{ margin: "4px 0 0" }}>Waiting for action</h2>
               </div>
               <span className="badge">
                 {visibleRows.length} of {rows.length} cases
@@ -489,45 +544,16 @@ export function OperationsClient({
             <h2>
               {selectedCaseId} · {String(selected.current_stage).toLowerCase()}
             </h2>
-            <div className="money">
-              <div className="metric-box">
-                <div className="metric stat-green">
-                  {rupee(selected.secured_amount)}
-                </div>
-                <div className="label">Secured</div>
-              </div>
-              <div className="metric-box">
-                <div className="metric stat-amber">
-                  {rupee(selected.tracing_amount)}
-                </div>
-                <div className="label">Tracing</div>
-              </div>
-              <div className="metric-box">
-                <div className="metric stat-red">
-                  {rupee(selected.unrecovered_amount)}
-                </div>
-                <div className="label">Unrecovered</div>
-              </div>
-              <div className="metric-box">
-                <div className="owner">
-                  {String(selected.current_owner_name)}
-                </div>
-                <div className="label">Current owner</div>
-              </div>
-            </div>
           </div>
-          <div className="card section">
-            <h2>Internal audit activity</h2>
+          <details className="card section secondary-detail">
+            <summary>Operator audit</summary>
             {detail.audits?.length ? (
               <div className="timeline">
                 {detail.audits.map((entry) => (
                   <div className="event" key={String(entry.id)}>
                     <time>{when(entry.created_at)}</time>
                     <strong>{String(entry.action).replaceAll("_", " ")}</strong>
-                    <p>
-                      {String(entry.actor_name)} · immutable operator audit
-                      entry
-                    </p>
+                    <p>{String(entry.actor_name)} · operator action recorded</p>
                   </div>
                 ))}
               </div>
@@ -536,9 +562,56 @@ export function OperationsClient({
                 No operator actions have been recorded since the last reset.
               </div>
             )}
-          </div>
+          </details>
         </section>
         <aside className="aside">
+          <section
+            className="card section operator-command"
+            aria-labelledby="operator-command-heading"
+          >
+            <div className="label">Command centre</div>
+            <h2 id="operator-command-heading">Command centre</h2>
+            <p className="operator-command-case">Case {command.caseId}</p>
+            <p className="operator-command-reported">
+              {command.reported} reported
+            </p>
+            <dl className="operator-command-money">
+              <div>
+                <dt>Secured</dt>
+                <dd className="stat-green">{command.secured}</dd>
+              </div>
+              <div>
+                <dt>Tracing</dt>
+                <dd className="stat-amber">{command.tracing}</dd>
+              </div>
+              <div>
+                <dt>Unrecovered</dt>
+                <dd className="stat-red">{command.unrecovered}</dd>
+              </div>
+            </dl>
+            <dl className="operator-command-facts">
+              <div>
+                <dt>Next action</dt>
+                <dd>{command.nextAction}</dd>
+              </div>
+              <div>
+                <dt>Owner</dt>
+                <dd>{command.owner}</dd>
+              </div>
+              <div>
+                <dt>Blocker</dt>
+                <dd>{command.blocker}</dd>
+              </div>
+              <div>
+                <dt>SLA</dt>
+                <dd>{command.sla}</dd>
+              </div>
+              <div>
+                <dt>AI recommendation</dt>
+                <dd>{command.aiRecommendation}</dd>
+              </div>
+            </dl>
+          </section>
           <details className="card section">
             <summary>Citizen-submitted report and additional details</summary>
             <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
@@ -548,6 +621,7 @@ export function OperationsClient({
           <AiAnalysis
             key={`${selectedCaseId}:${selected.version}`}
             caseId={selectedCaseId}
+            onResult={setAiBrief}
           />
           {message && (
             <div className={messageTone} role="status">
@@ -568,8 +642,8 @@ export function OperationsClient({
               <div className="label">Demo action</div>
               <h2>Secure ₹6,700</h2>
               <p>
-                Places a hold on the ₹6,700 traced to ICICI ••1834. Validated
-                against the recorded movement, then written as one transaction.
+                Hold the ₹6,700 traced to ICICI ••1834. The citizen sees this
+                immediately.
               </p>
               {securableMovement && (
                 <div className="demo-action-preview">
@@ -601,8 +675,7 @@ export function OperationsClient({
                     : "✓ Already secured"}
               </button>
               <p className="demo-action-note">
-                Running it twice is rejected by the case engine, not just the
-                button.
+                Running it twice is rejected — the case will not double-count.
               </p>
             </div>
           )}
@@ -615,9 +688,8 @@ export function OperationsClient({
                 Secure {rupee(selected.tracing_amount)}
               </h2>
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                Record confirmation for this traceable movement. Every mutation
-                is idempotent. External bank confirmation is handled by the
-                integration job{httpIntegrations ? " over HTTP" : ""}.
+                Confirm that this amount is now held. The bank response is
+                recorded on the case; technical job status is below.
               </p>
               <button
                 className="btn"
@@ -625,41 +697,46 @@ export function OperationsClient({
                 onClick={() => secure(Number(selected.tracing_amount))}
                 disabled={Boolean(busy)}
               >
-                {busy === "secure" ? "Writing event…" : "Record funds secured"}
+                {busy === "secure" ? "Recording…" : "Record funds secured"}
               </button>
             </div>
           ) : null}
           {supportsTracing && traceableMovements.length > 0 && (
             <div className="card">
               <div className="label">Trace funds</div>
-              <h2 style={{ margin: "6px 0" }}>Split a traced movement</h2>
+              <h2 style={{ margin: "6px 0" }}>
+                Trace funds to another account
+              </h2>
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                Move part of a traced amount onward to a new account, or confirm
-                part of it as secured or unrecovered. The remainder stays where
-                it was.
+                Move part of a traced amount to another account, or confirm part
+                of it as secured or unrecovered. The rest stays where it was.
               </p>
               <div className="form">
                 <label>
-                  Movement
+                  Traced amount
                   <select
                     value={traceMovementId}
                     onChange={(event) => setTraceMovementId(event.target.value)}
                   >
-                    <option value="">Choose a traced movement…</option>
+                    <option value="">Choose a traced amount…</option>
                     {traceableMovements.map((movement) => (
                       <option
                         key={String(movement.id)}
                         value={String(movement.id)}
                       >
-                        {String(movement.to_account || "Destination pending")} ·{" "}
-                        {rupee(movement.amount)} ·{" "}
-                        {String(movement.movement_status)}
+                        {String(
+                          movement.to_account || "Account not yet identified",
+                        )}{" "}
+                        · {rupee(movement.amount)} ·{" "}
+                        {movementStatusLabel[
+                          String(movement.movement_status)
+                        ] || String(movement.movement_status)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Amount to split
+                  Amount
                   <input
                     type="number"
                     min={1}
@@ -673,7 +750,7 @@ export function OperationsClient({
                     placeholder={
                       activeTraceMovement
                         ? `Up to ${rupee(activeTraceMovement.amount)}`
-                        : "Select a movement first"
+                        : "Select a traced amount first"
                     }
                     disabled={!activeTraceMovement}
                   />
@@ -705,7 +782,7 @@ export function OperationsClient({
                     <option value="">Same account</option>
                     {institutions.map((institution) => (
                       <option key={institution.id} value={institution.id}>
-                        Onward to {institution.name}
+                        To {institution.name}
                       </option>
                     ))}
                   </select>
@@ -717,7 +794,7 @@ export function OperationsClient({
                     Boolean(busy) || !activeTraceMovement || !traceAmount
                   }
                 >
-                  {busy === "trace" ? "Writing event…" : "Record split"}
+                  {busy === "trace" ? "Recording…" : "Record split"}
                 </button>
               </div>
             </div>
@@ -738,67 +815,73 @@ export function OperationsClient({
             </div>
           </div>
           <div className="card">
-            <div className="label">Integration jobs</div>
+            <div className="label">FIR</div>
+            <strong>
+              {firStatusLabel[String(fir.fir_status || "not_started")] ||
+                "Not started"}
+            </strong>
+            {Boolean(fir.fir_number) && <p>{String(fir.fir_number)}</p>}
+          </div>
+          <details className="card secondary-detail">
+            <summary>Bank, police and reporting tasks</summary>
             {(detail.integrationJobs || []).length ? (
               <div className="timeline">
                 {(detail.integrationJobs || []).map((job) => (
                   <div className="event" key={String(job.id)}>
                     <time>{when(job.created_at)}</time>
-                    <strong>
-                      {String(job.provider)} ·{" "}
-                      {String(job.action).replaceAll("_", " ")}
-                    </strong>
+                    <strong>{jobTitle(job)}</strong>
                     <p>
-                      {String(job.status)}
+                      {jobStatusLabel(job.status)}
                       {job.external_reference
                         ? ` · ${String(job.external_reference)}`
                         : ""}
                       {job.last_error ? ` · ${String(job.last_error)}` : ""}
+                    </p>
+                    <p className="secondary-meta">
+                      {String(job.provider)} ·{" "}
+                      {String(job.action).replaceAll("_", " ")} ·{" "}
+                      {String(job.status)}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
               <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-                No durable partner jobs for this case yet. Freeze, police and
-                reporting actions enqueue jobs first, then the adapter runs.
+                No bank, police or reporting tasks for this case yet. Those
+                tasks appear here when a freeze, police assignment or official
+                complaint is sent
+                {httpIntegrations ? " over the sandbox connection." : "."}
               </p>
             )}
-          </div>
-          <div className="card">
-            <div className="label">FIR</div>
-            <strong>
-              {String(fir.fir_status || "not_started").replaceAll("_", " ")}
-            </strong>
-            {Boolean(fir.fir_number) && <p>{String(fir.fir_number)}</p>}
-            <div className="label" style={{ marginTop: 12 }}>
-              Evidence requests
-            </div>
+          </details>
+          <details className="card secondary-detail">
+            <summary>Evidence requests and SLA detail</summary>
+            <div className="label">Evidence requests</div>
             <strong>
               {
                 detail.evidenceRequests.filter((item) => item.status === "open")
                   .length
               }{" "}
-              open ·{" "}
+              needed from the citizen ·{" "}
               {
                 detail.evidenceRequests.filter(
                   (item) => item.status === "submitted",
                 ).length
               }{" "}
-              submitted
+              with the team
             </strong>
-          </div>
-          <div className="card">
-            <div className="label">Institutional SLA</div>
+            <div className="label" style={{ marginTop: 12 }}>
+              Deadline calculation
+            </div>
             <strong>{String(detail.sla.label)}</strong>
             <p style={{ fontSize: 13, color: "var(--muted)" }}>
-              Evaluated from persisted event timestamps. Overdue waits create
-              SLA and escalation events automatically.
+              Taken from recorded freeze and response times. A late response is
+              escalated automatically.
             </p>
             <span className="badge">
               {String(detail.sla.status).replaceAll("_", " ")}
             </span>
-          </div>
+          </details>
         </aside>
       </main>
     </>

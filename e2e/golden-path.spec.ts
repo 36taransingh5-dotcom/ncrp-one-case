@@ -12,10 +12,10 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
     .click();
   await expect(operator).toHaveURL(/\/operations/);
   await operator.getByRole("button", { name: "Reset demo" }).click();
+  await expect(operator.getByRole("heading", { name: "Cases" })).toBeVisible();
   await expect(
-    operator.getByRole("heading", { name: "Case coordination queue" }),
+    operator.getByText("Bank, police and reporting tasks"),
   ).toBeVisible();
-  await expect(operator.getByText("Integration jobs")).toBeVisible();
   await expect(
     operator.getByRole("link", { name: "Integration status" }),
   ).toBeVisible();

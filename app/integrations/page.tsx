@@ -30,11 +30,12 @@ export default async function IntegrationsPage() {
               <a href="/operations">Operations</a> · signed in as{" "}
               {session.displayName}
             </div>
-            <h1>Integration status</h1>
+            <h1>Partner connections</h1>
             <p>
-              Live labels are reserved for configured production providers.
-              Bank, police and reporting HTTP bindings are sandbox unless a live
-              institutional API is actually connected.
+              Check which banks, police systems and email providers are actually
+              connected. Live is reserved for production providers. Bank, police
+              and reporting HTTP bindings stay sandbox unless a live
+              institutional API is connected.
             </p>
           </div>
           <a className="btn secondary" href="/operations">

@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
+import { buildCitizenCaseSummary } from "@/lib/domain/citizen-summary";
 import { MoneyTrail } from "@/components/MoneyTrail";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { DigiLockerConnect } from "@/components/DigiLockerConnect";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -440,6 +442,7 @@ export function CitizenCaseClient({
   const visibleEvents = detail.events.filter((event) =>
     Number(event.citizen_visible),
   );
+  const snapshot = buildCitizenCaseSummary(detail, { sessionExpired });
 
   return (
     <>
@@ -479,6 +482,31 @@ export function CitizenCaseClient({
       </header>
 
       <main className="shell citizen-main">
+        <section
+          className="card section citizen-snapshot"
+          aria-labelledby="citizen-snapshot-heading"
+        >
+          <h2 id="citizen-snapshot-heading">Your case at a glance</h2>
+          <dl>
+            <div>
+              <dt>Money protected</dt>
+              <dd>{snapshot.moneyProtected}</dd>
+            </div>
+            <div>
+              <dt>Current status</dt>
+              <dd>{snapshot.happeningNow}</dd>
+            </div>
+            <div>
+              <dt>Your action</dt>
+              <dd>{snapshot.youNeedToDo}</dd>
+            </div>
+            <div>
+              <dt>FIR</dt>
+              <dd>{snapshot.firStatus}</dd>
+              {snapshot.firNumber ? <p>{snapshot.firNumber}</p> : null}
+            </div>
+          </dl>
+        </section>
         <details className="card section">
           <summary>Your submitted report and additional details</summary>
           <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
@@ -579,6 +607,9 @@ export function CitizenCaseClient({
             >
               {realtimeMode === "supabase" ? "Sign in" : "Return to demo entry"}
             </a>
+            {realtimeMode === "supabase" ? (
+              <DigiLockerComingSoonButton />
+            ) : null}
           </section>
         )}
 
@@ -658,7 +689,7 @@ export function CitizenCaseClient({
 
             {overdue && escalated && (
               <p className="escalation">
-                Automatic escalation created — a senior desk now owns the delay.
+                The bank was late, so this was sent to a senior desk.
               </p>
             )}
             {!live && (
@@ -672,7 +703,10 @@ export function CitizenCaseClient({
           </article>
         </section>
 
-        <section className="card trail-section" aria-labelledby="trail-heading">
+        <section
+          className="card trail-section secondary-panel"
+          aria-labelledby="trail-heading"
+        >
           <div className="section-heading">
             <div>
               <span className="eyebrow">Money trail</span>
@@ -698,7 +732,7 @@ export function CitizenCaseClient({
 
         <div className="citizen-columns">
           <section
-            className="card section timeline-card"
+            className="card section timeline-card secondary-panel"
             aria-labelledby="timeline-heading"
           >
             <div className="section-heading">
@@ -823,7 +857,7 @@ export function CitizenCaseClient({
         </div>
 
         <section
-          className="card section evidence-section"
+          className="card section evidence-section secondary-panel"
           id="evidence"
           aria-labelledby="evidence-heading"
         >

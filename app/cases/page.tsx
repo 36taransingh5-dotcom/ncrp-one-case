@@ -25,7 +25,10 @@ export default async function CitizenCasesPage() {
           <div>
             <div className="eyebrow">Citizen account</div>
             <h1>Your cases</h1>
-            <p>Signed in as {session.displayName}</p>
+            <p>
+              Signed in as {session.displayName}. Every report you file stays in
+              one place.
+            </p>
           </div>
           <div className="case-actions">
             <a className="btn" href="/report">
@@ -62,10 +65,7 @@ export default async function CitizenCasesPage() {
           <section className="card section">
             <div className="empty">
               <strong>No cases yet.</strong>
-              <p>
-                When you report an incident, your persistent case and all
-                subsequent updates will appear here.
-              </p>
+              <p>When you file a report, it appears here with every update.</p>
               <a className="btn" href="/report">
                 Report financial fraud
               </a>

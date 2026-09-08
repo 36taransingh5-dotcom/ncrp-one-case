@@ -6,10 +6,12 @@ export function AiAnalysis({
   description,
   caseId,
   onAccept,
+  onResult,
 }: {
   description?: string;
   caseId?: string;
   onAccept?: (result: Intelligence) => void;
+  onResult?: (result: Intelligence) => void;
 }) {
   const [result, setResult] = useState<Intelligence | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,8 +36,10 @@ export function AiAnalysis({
         throw new Error(
           data.error || "AI analysis unavailable. Continue normally.",
         );
-      setResult(intelligenceSchema.parse(data.result));
+      const parsed = intelligenceSchema.parse(data.result);
+      setResult(parsed);
       setAnalysedInput(input);
+      onResult?.(parsed);
     } catch (e) {
       setError(
         e instanceof Error
@@ -51,11 +55,14 @@ export function AiAnalysis({
       className="card section"
       aria-label={caseId ? "AI Case Brief" : "AI report analysis"}
     >
-      <h2>{caseId ? "AI Case Brief" : "Understand your report with AI"}</h2>
+      <h2>
+        {caseId ? "What AI recommends" : "Understand your report with AI"}
+      </h2>
       <p>
-        OpenAI analyses {caseId ? "relevant case details" : "your description"}{" "}
-        to suggest information and next steps. Operational decisions remain with
-        authorised users.
+        {caseId
+          ? "AI reads this case and suggests a next step. You still decide."
+          : "AI organises your description so the case can start. You can still correct anything."}{" "}
+        Operational decisions remain with authorised users.
       </p>
       <button
         type="button"

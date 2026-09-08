@@ -311,8 +311,8 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
         <span className="eyebrow">Tell us · Review · Create case</span>
         <h2>You don’t need to know every detail.</h2>
         <p>
-          Start with what you remember. Leave optional details for later. You’ll
-          review everything before creating a case.
+          Start with what you remember. That becomes one case. You’ll review
+          everything before it is created.
         </p>
       </div>
       <h3>1 · Tell your story</h3>
