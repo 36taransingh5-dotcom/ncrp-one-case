@@ -15,8 +15,16 @@ export const intelligenceSchema = z
     paymentChannel: z
       .enum(["UPI", "Bank transfer", "Card", "Wallet", "Other digital payment"])
       .nullable(),
-    sourceInstitution: text.nullable(),
-    beneficiaryInstitution: text.nullable(),
+    sourceInstitution: text
+      .nullable()
+      .describe(
+        "The institution explicitly identified as holding the account money was debited from. Return null if not stated. A caller claiming to represent a bank does NOT identify the source institution. Example: 'Caller claimed Example Bank; I paid by UPI' means null.",
+      ),
+    beneficiaryInstitution: text
+      .nullable()
+      .describe(
+        "The institution explicitly identified as receiving the money. Return null if unknown. Never use an impersonated institution or caller affiliation as the beneficiary institution.",
+      ),
     transactionReferences: z.array(text).max(10),
     incidentDate: z
       .string()
