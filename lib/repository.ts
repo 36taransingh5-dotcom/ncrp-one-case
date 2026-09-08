@@ -128,6 +128,61 @@ export async function secureCaseFunds(input: {
       });
 }
 
+/**
+ * Splits an existing tracing/moved fund movement into a remainder and a new
+ * slice — either resting at the same account (a partial secure/unrecover) or
+ * hopping onward to a new destination institution (a new branch). Supabase-
+ * backed production path only: the local SQLite demo keeps its single
+ * seeded golden-case movement shape and doesn't need this.
+ */
+export async function traceCaseMovement(input: {
+  publicCaseId: string;
+  expectedVersion: number;
+  movementId: string;
+  amount: number;
+  status: string;
+  institutionId?: string;
+  destinationAccount?: string;
+  idempotencyKey?: string;
+}) {
+  if (isLocalBackend())
+    throw new Error(
+      "Splitting fund movements is available on the Supabase-backed production path only.",
+    );
+  return executeSupabaseCommand({
+    publicCaseId: input.publicCaseId,
+    action: "TRACE_MOVEMENT",
+    expectedVersion: input.expectedVersion,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      movementId: input.movementId,
+      amount: input.amount,
+      status: input.status,
+      institutionId: input.institutionId,
+      destinationAccount: input.destinationAccount,
+    },
+  });
+}
+
+export type Institution = { id: string; name: string; short_code: string | null };
+
+export async function listInstitutions(): Promise<Institution[]> {
+  if (isLocalBackend())
+    return db
+      .prepare(
+        "SELECT id, name, short_code FROM institutions WHERE institution_type='bank' ORDER BY name",
+      )
+      .all() as Institution[];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("institutions")
+    .select("id,name,short_code")
+    .eq("institution_type", "bank")
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data || []) as Institution[];
+}
+
 export async function markCaseNotificationsRead(
   userId: string,
   publicCaseId: string,

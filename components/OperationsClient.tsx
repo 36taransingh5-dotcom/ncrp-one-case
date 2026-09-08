@@ -50,18 +50,24 @@ const when = (value: unknown) =>
     timeZone: "Asia/Kolkata",
   }).format(new Date(String(value)));
 
+type Institution = { id: string; name: string; short_code: string | null };
+
 export function OperationsClient({
   cases,
   initialDetail,
   operatorName,
   operatorId,
   localDemo,
+  supportsTracing,
+  institutions,
 }: {
   cases: CaseListRow[];
   initialDetail: CaseDetail;
   operatorName: string;
   operatorId: string;
   localDemo: boolean;
+  supportsTracing: boolean;
+  institutions: Institution[];
 }) {
   const [rows, setRows] = useState(cases);
   const [detail, setDetail] = useState(initialDetail);
@@ -156,6 +162,61 @@ export function OperationsClient({
     updateDetail(
       data,
       `Recorded ${rupee(amount)} as secured. The movement, event, audit record and citizen notification were persisted and broadcast live.`,
+    );
+  };
+  const traceableMovements = detail.movements.filter((movement) =>
+    ["tracing", "moved"].includes(String(movement.movement_status)),
+  );
+  const [traceMovementId, setTraceMovementId] = useState("");
+  const [traceAmount, setTraceAmount] = useState("");
+  const [traceStatus, setTraceStatus] = useState<
+    "secured" | "tracing" | "unrecovered"
+  >("secured");
+  const [traceInstitution, setTraceInstitution] = useState("");
+  const activeTraceMovement = traceableMovements.find(
+    (movement) => String(movement.id) === traceMovementId,
+  );
+  const trace = async () => {
+    if (!activeTraceMovement) return fail("Choose a traced movement first.");
+    const amount = Number(traceAmount);
+    if (!Number.isInteger(amount) || amount <= 0)
+      return fail("Enter a split amount greater than zero.");
+    if (amount > Number(activeTraceMovement.amount))
+      return fail(
+        `That movement only has ${rupee(activeTraceMovement.amount)} left to split.`,
+      );
+    const keyName = `${selectedCaseId}:TRACE_MOVEMENT:${traceMovementId}:${amount}:${traceStatus}:${traceInstitution}`;
+    const idempotencyKey =
+      commandKeys.current.get(keyName) || crypto.randomUUID();
+    commandKeys.current.set(keyName, idempotencyKey);
+    setBusy("trace");
+    setMessage("");
+    const response = await fetch("/api/operations/trace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: selectedCaseId,
+        movementId: traceMovementId,
+        amount,
+        status: traceStatus,
+        institutionId: traceInstitution || undefined,
+        expectedVersion: Number(selected.version || 0),
+        idempotencyKey,
+      }),
+    });
+    const data = await response.json();
+    setBusy("");
+    if (response.status === 401) setSessionExpired(true);
+    if (!response.ok)
+      return fail(data.error || "Action could not be completed.");
+    commandKeys.current.delete(keyName);
+    setTraceMovementId("");
+    setTraceAmount("");
+    setTraceInstitution("");
+    const destination = institutions.find((i) => i.id === traceInstitution);
+    updateDetail(
+      data,
+      `${rupee(amount)} ${traceStatus === "secured" ? "secured" : traceStatus === "unrecovered" ? "marked unrecovered" : "traced onward"}${destination ? ` at ${destination.name}` : ""}. The citizen's money trail updated live.`,
     );
   };
   const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
@@ -553,6 +614,93 @@ export function OperationsClient({
               </button>
             </div>
           ) : null}
+          {supportsTracing && traceableMovements.length > 0 && (
+            <div className="card">
+              <div className="label">Trace funds</div>
+              <h2 style={{ margin: "6px 0" }}>Split a traced movement</h2>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                Move part of a traced amount onward to a new account, or
+                confirm part of it as secured or unrecovered. The remainder
+                stays where it was.
+              </p>
+              <div className="form">
+                <label>
+                  Movement
+                  <select
+                    value={traceMovementId}
+                    onChange={(event) => setTraceMovementId(event.target.value)}
+                  >
+                    <option value="">Choose a traced movement…</option>
+                    {traceableMovements.map((movement) => (
+                      <option
+                        key={String(movement.id)}
+                        value={String(movement.id)}
+                      >
+                        {String(movement.to_account || "Destination pending")} ·{" "}
+                        {rupee(movement.amount)} · {String(movement.movement_status)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Amount to split
+                  <input
+                    type="number"
+                    min={1}
+                    max={
+                      activeTraceMovement
+                        ? Number(activeTraceMovement.amount)
+                        : undefined
+                    }
+                    value={traceAmount}
+                    onChange={(event) => setTraceAmount(event.target.value)}
+                    placeholder={
+                      activeTraceMovement
+                        ? `Up to ${rupee(activeTraceMovement.amount)}`
+                        : "Select a movement first"
+                    }
+                    disabled={!activeTraceMovement}
+                  />
+                </label>
+                <label>
+                  Outcome
+                  <select
+                    value={traceStatus}
+                    onChange={(event) =>
+                      setTraceStatus(
+                        event.target.value as "secured" | "tracing" | "unrecovered",
+                      )
+                    }
+                  >
+                    <option value="secured">Secured</option>
+                    <option value="tracing">Still tracing</option>
+                    <option value="unrecovered">Unrecovered</option>
+                  </select>
+                </label>
+                <label>
+                  Destination
+                  <select
+                    value={traceInstitution}
+                    onChange={(event) => setTraceInstitution(event.target.value)}
+                  >
+                    <option value="">Same account</option>
+                    {institutions.map((institution) => (
+                      <option key={institution.id} value={institution.id}>
+                        Onward to {institution.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn"
+                  onClick={trace}
+                  disabled={Boolean(busy) || !activeTraceMovement || !traceAmount}
+                >
+                  {busy === "trace" ? "Writing event…" : "Record split"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="card">
             <div className="label">Case actions</div>
             <div className="action-stack">
