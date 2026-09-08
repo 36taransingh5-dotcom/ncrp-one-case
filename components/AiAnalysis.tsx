@@ -6,10 +6,12 @@ export function AiAnalysis({
   description,
   caseId,
   onAccept,
+  onResult,
 }: {
   description?: string;
   caseId?: string;
   onAccept?: (result: Intelligence) => void;
+  onResult?: (result: Intelligence) => void;
 }) {
   const [result, setResult] = useState<Intelligence | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,8 +36,10 @@ export function AiAnalysis({
         throw new Error(
           data.error || "AI analysis unavailable. Continue normally.",
         );
-      setResult(intelligenceSchema.parse(data.result));
+      const parsed = intelligenceSchema.parse(data.result);
+      setResult(parsed);
       setAnalysedInput(input);
+      onResult?.(parsed);
     } catch (e) {
       setError(
         e instanceof Error

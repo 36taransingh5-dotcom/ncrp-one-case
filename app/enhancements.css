@@ -1241,6 +1241,52 @@
   margin-top: 10px !important;
   font-size: 12px !important;
 }
+.operator-command {
+  padding: 20px 18px;
+}
+.operator-command h2 {
+  margin: 4px 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+.operator-command-reported {
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.operator-command-money,
+.operator-command-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.operator-command-money {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+.operator-command-facts {
+  grid-template-columns: 1fr;
+}
+.operator-command dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.operator-command dd {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+@media (max-width: 700px) {
+  .operator-command-money {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* --- Landing -------------------------------------------------------------- */
 .hero-actions {

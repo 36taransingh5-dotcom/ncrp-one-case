@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
+import type { Intelligence } from "@/lib/ai/schema";
+import { buildOperatorCaseSummary } from "@/lib/domain/operator-summary";
 import { AiAnalysis } from "./AiAnalysis";
 import { PrototypeNotice } from "./PrototypeNotice";
 
@@ -85,11 +87,21 @@ export function OperationsClient({
   );
   const [busy, setBusy] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [aiBrief, setAiBrief] = useState<Intelligence | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const commandKeys = useRef(new Map<string, string>());
   const selected = detail.case as Row;
   const fir = detail.fir as Row;
   const selectedCaseId = String(selected.public_case_id);
   const isGolden = selectedCaseId === "NCRP-26-847193";
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const command = buildOperatorCaseSummary(detail, {
+    nowMs,
+    recommendedAction: aiBrief?.recommendedAction ?? null,
+  });
   const visibleRows = useMemo(
     () =>
       rows.filter((row) => {
@@ -138,6 +150,7 @@ export function OperationsClient({
     if (response.status === 401) setSessionExpired(true);
     if (!response.ok)
       return fail(data.error || "Case detail could not be loaded.");
+    setAiBrief(null);
     setDetail(data);
   };
   const secure = async (amount = 6700) => {
@@ -539,6 +552,52 @@ export function OperationsClient({
           </div>
         </section>
         <aside className="aside">
+          <section
+            className="card section operator-command"
+            aria-labelledby="operator-command-heading"
+          >
+            <div className="label">Command centre</div>
+            <h2 id="operator-command-heading">Case {command.caseId}</h2>
+            <p className="operator-command-reported">
+              {command.reported} reported
+            </p>
+            <dl className="operator-command-money">
+              <div>
+                <dt>Secured</dt>
+                <dd className="stat-green">{command.secured}</dd>
+              </div>
+              <div>
+                <dt>Tracing</dt>
+                <dd className="stat-amber">{command.tracing}</dd>
+              </div>
+              <div>
+                <dt>Unrecovered</dt>
+                <dd className="stat-red">{command.unrecovered}</dd>
+              </div>
+            </dl>
+            <dl className="operator-command-facts">
+              <div>
+                <dt>Next action</dt>
+                <dd>{command.nextAction}</dd>
+              </div>
+              <div>
+                <dt>Owner</dt>
+                <dd>{command.owner}</dd>
+              </div>
+              <div>
+                <dt>Blocker</dt>
+                <dd>{command.blocker}</dd>
+              </div>
+              <div>
+                <dt>SLA</dt>
+                <dd>{command.sla}</dd>
+              </div>
+              <div>
+                <dt>AI recommendation</dt>
+                <dd>{command.aiRecommendation}</dd>
+              </div>
+            </dl>
+          </section>
           <details className="card section">
             <summary>Citizen-submitted report and additional details</summary>
             <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
@@ -548,6 +607,7 @@ export function OperationsClient({
           <AiAnalysis
             key={`${selectedCaseId}:${selected.version}`}
             caseId={selectedCaseId}
+            onResult={setAiBrief}
           />
           {message && (
             <div className={messageTone} role="status">
