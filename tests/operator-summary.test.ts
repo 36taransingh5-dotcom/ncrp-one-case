@@ -25,7 +25,9 @@ function detail(
       case_status: overrides.status || "PARTIALLY_SECURED",
       current_owner_type: overrides.ownerType || "bank",
       current_owner_name:
-        overrides.ownerName || "HDFC Bank — fraud response team",
+        overrides.ownerName !== undefined
+          ? overrides.ownerName
+          : "HDFC Bank — fraud response team",
       reported_amount: overrides.reported ?? 48_500,
       secured_amount: overrides.secured ?? 31_200,
       tracing_amount: overrides.tracing ?? 12_000,
