@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 
 type IssuedFile = {
   name: string;
@@ -106,11 +107,7 @@ export function DigiLockerConnect({
           Connect DigiLocker
         </a>
       )}
-      {!enabled && (
-        <button className="btn secondary" type="button" disabled>
-          Connect DigiLocker (unavailable)
-        </button>
-      )}
+      {!enabled && <DigiLockerComingSoonButton label="Connect DigiLocker" />}
       {files && files.length === 0 && (
         <p style={{ fontSize: 13, marginTop: 12 }}>
           No issued documents were shared for this authorization.

@@ -45,7 +45,7 @@ const TONE_COLOR: Record<Tone, string> = {
   secured: "#157a4c",
   tracing: "#a35f00",
   unrecovered: "#b23a2e",
-  mixed: "#3654e0",
+  mixed: "#0033ff",
   pass: "#9aa3c2",
 };
 
