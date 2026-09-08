@@ -21,8 +21,23 @@ function env(name: string) {
   return process.env[name]?.trim() || "";
 }
 
+export function resolveIntegrationMode(
+  explicitMode: string,
+  backend: string,
+  hasSandboxSecret: boolean,
+): IntegrationMode {
+  if (explicitMode === "http" || explicitMode === "simulated")
+    return explicitMode;
+  if (backend === "supabase" && hasSandboxSecret) return "http";
+  return "simulated";
+}
+
 export function getIntegrationMode(): IntegrationMode {
-  return env("NCRP_INTEGRATION_MODE") === "http" ? "http" : "simulated";
+  return resolveIntegrationMode(
+    env("NCRP_INTEGRATION_MODE"),
+    env("NCRP_BACKEND"),
+    Boolean(getSandboxSecret()),
+  );
 }
 
 export function getIntegrationTimeoutMs() {
@@ -32,11 +47,19 @@ export function getIntegrationTimeoutMs() {
 }
 
 export function getWebhookSecret() {
-  return env("NCRP_WEBHOOK_SECRET");
+  return (
+    env("NCRP_WEBHOOK_SECRET") ||
+    env("NCRP_SANDBOX_SECRET") ||
+    env("NCRP_WORKER_SECRET")
+  );
 }
 
 export function getSandboxSecret() {
-  return env("NCRP_SANDBOX_SECRET");
+  return (
+    env("NCRP_SANDBOX_SECRET") ||
+    env("NCRP_WORKER_SECRET") ||
+    env("CRON_SECRET")
+  );
 }
 
 export function getAppBaseUrl() {

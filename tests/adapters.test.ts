@@ -7,7 +7,10 @@ import {
   RetryableIntegrationError,
 } from "../lib/adapters/errors";
 import { integrationFetch } from "../lib/adapters/http-client";
-import { resolveProviderBinding } from "../lib/adapters/config";
+import {
+  resolveIntegrationMode,
+  resolveProviderBinding,
+} from "../lib/adapters/config";
 import { executeIntegrationAction } from "../lib/adapters/execute";
 import { createHttpBankAdapter } from "../lib/adapters/http";
 import {
@@ -161,6 +164,17 @@ test("HTTP bank adapter sends idempotency keys and polls freeze status", async (
       assert.ok(seen.some((item) => item.method === "GET"));
     },
   );
+});
+
+test("hosted Supabase deployments enable HTTP when a sandbox secret exists", () => {
+  assert.equal(resolveIntegrationMode("", "local", true), "simulated");
+  assert.equal(resolveIntegrationMode("", "supabase", false), "simulated");
+  assert.equal(resolveIntegrationMode("", "supabase", true), "http");
+  assert.equal(
+    resolveIntegrationMode("simulated", "supabase", true),
+    "simulated",
+  );
+  assert.equal(resolveIntegrationMode("http", "local", false), "http");
 });
 
 test("missing HTTP credentials keep the simulated binding", () => {

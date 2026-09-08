@@ -13,7 +13,7 @@ No official NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker
 | Notifications                   | Simulated or HTTP `/v1/messages`   | Outbox send with idempotency key                      | Transactional email adapter          |
 | Telecom / identity / DigiLocker | Not connected                      | Explicitly out of scope                               | Future approved adapters only        |
 
-Set `NCRP_INTEGRATION_MODE=http` plus per-provider base URL and API key (or `NCRP_SANDBOX_SECRET` with `NCRP_APP_BASE_URL`) to send real HTTP. Missing provider credentials keep that provider on the simulated adapter. Default remains `simulated` so local tests and the SQLite demo stay offline.
+Set `NCRP_INTEGRATION_MODE=http` plus per-provider base URL and API key (or `NCRP_SANDBOX_SECRET` with `NCRP_APP_BASE_URL`) to send real HTTP. Hosted `NCRP_BACKEND=supabase` deployments also enable the HTTP sandbox automatically when `NCRP_WORKER_SECRET` is set, unless `NCRP_INTEGRATION_MODE=simulated`. Missing provider credentials keep that provider on the simulated adapter. Local tests and the SQLite demo stay `simulated`.
 
 The in-app sandbox at `/api/integrations/sandbox/{bank,police,reporting,notification}/v1/...` is a labelled synthetic partner. It requires the provider API key or sandbox secret in production. It returns deterministic references from the `Idempotency-Key` header and never talks to a real bank or police system.
 
