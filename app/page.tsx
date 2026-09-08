@@ -1,7 +1,10 @@
 import { DemoEntry } from "@/components/DemoEntry";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
+import { BrandMark } from "@/components/BrandMark";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
+import { SiteNav } from "@/components/SiteNav";
 import { currentSession } from "@/lib/auth";
-import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
+import { isDemoAccessEnabled } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +25,6 @@ const steps = [
 
 export default async function Home() {
   const session = await currentSession();
-  const local = isLocalBackend();
   const demoAccess = isDemoAccessEnabled();
   const accountHref = session
     ? session.role === "operator"
@@ -33,57 +35,55 @@ export default async function Home() {
     <>
       <PrototypeNotice />
       <main className="shell">
-        <nav className="nav">
-          <div className="brand">
-            NCRP <span>One Case</span>
-          </div>
-          <div className="navlinks">
-            <a href="#how">How it works</a>
-            <a className="btn secondary" href={accountHref}>
-              {session ? "Open account" : "Sign in"}
+        <SiteNav
+          links={[
+            { href: "#how", label: "How it works" },
+            { href: accountHref, label: session ? "Open account" : "Sign in" },
+          ]}
+          extra={
+            demoAccess ? (
+              <DemoEntry role="operator" label="Enter operations demo" />
+            ) : null
+          }
+        />
+
+        <section className="hero hero-centered">
+          <span className="hero-mark">
+            <BrandMark size={72} />
+          </span>
+          <h1>
+            You report cyber fraud <span className="accent">once</span>. The
+            system does the <span className="accent">running</span>.
+          </h1>
+          <p>
+            Today a victim repeats their story to a portal, a bank and a police
+            station, and never learns where the money went. One Case replaces
+            that with a single case that tracks the money, the agencies and the
+            next action — in the open.
+          </p>
+          <div className="hero-actions">
+            <a
+              className="btn"
+              href={session?.role === "citizen" ? "/report" : "/auth"}
+            >
+              Start a new report
             </a>
+            {!session ? <DigiLockerComingSoonButton /> : null}
+            {demoAccess ? (
+              <DemoEntry role="citizen" label="Enter citizen demo" />
+            ) : null}
             {demoAccess ? (
               <DemoEntry role="operator" label="Enter operations demo" />
             ) : null}
           </div>
-        </nav>
+          <p className="hero-hint">
+            {demoAccess
+              ? "Synthetic demos open instantly; citizen accounts can also use secure email sign-in."
+              : "Secure email sign-in keeps every citizen case private."}
+          </p>
+        </section>
 
-        <section className="hero">
-          <div>
-            <span className="eyebrow">
-              Report once. Government coordinates the rest.
-            </span>
-            <h1>
-              You report cyber fraud <span className="accent">once</span>. The
-              system does the <span className="accent">running</span>.
-            </h1>
-            <p>
-              Today a victim repeats their story to a portal, a bank and a
-              police station, and never learns where the money went. One Case
-              replaces that with a single case that tracks the money, the
-              agencies and the next action — in the open.
-            </p>
-            <div className="hero-actions">
-              <a
-                className="btn"
-                href={session?.role === "citizen" ? "/report" : "/auth"}
-              >
-                Start a new report
-              </a>
-              {demoAccess ? (
-                <DemoEntry role="citizen" label="Enter citizen demo" />
-              ) : null}
-              {demoAccess ? (
-                <DemoEntry role="operator" label="Enter operations demo" />
-              ) : null}
-            </div>
-            <p className="hero-hint">
-              {demoAccess
-                ? "Synthetic demos open instantly; citizen accounts can also use secure email sign-in."
-                : "Secure email sign-in keeps every citizen case private."}
-            </p>
-          </div>
-
+        <div className="hero-case-wrap">
           <div
             className="card hero-card"
             aria-label="Synthetic example case summary"
@@ -118,7 +118,11 @@ export default async function Home() {
               Nothing needed from the citizen right now.
             </p>
           </div>
-        </section>
+        </div>
+
+        <a className="landing-path" href="#how">
+          Report once → Money chased → Agencies hand over · See ↓
+        </a>
 
         <section id="how" className="card section how-section">
           <span className="eyebrow">How One Case works</span>

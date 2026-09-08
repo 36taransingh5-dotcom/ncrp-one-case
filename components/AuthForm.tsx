@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function AuthForm({ configured }: { configured: boolean }) {
@@ -36,37 +37,43 @@ export function AuthForm({ configured }: { configured: boolean }) {
   }
 
   return (
-    <form className="form" onSubmit={submit}>
-      <label>
-        Your name
-        <input
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-          maxLength={120}
-          autoComplete="name"
-        />
-      </label>
-      <label>
-        Email address
-        <input
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-          autoComplete="email"
-        />
-      </label>
-      {message && (
-        <div
-          className={message.startsWith("Check") ? "success" : "error"}
-          role="status"
-        >
-          {message}
-        </div>
-      )}
-      <button className="btn" disabled={busy}>
-        {busy ? "Sending secure link…" : "Continue with email"}
-      </button>
-    </form>
+    <>
+      <form className="form" onSubmit={submit}>
+        <label>
+          Your name
+          <input
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            maxLength={120}
+            autoComplete="name"
+          />
+        </label>
+        <label>
+          Email address
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            autoComplete="email"
+          />
+        </label>
+        {message && (
+          <div
+            className={message.startsWith("Check") ? "success" : "error"}
+            role="status"
+          >
+            {message}
+          </div>
+        )}
+        <button className="btn" disabled={busy}>
+          {busy ? "Sending secure link…" : "Continue with email"}
+        </button>
+      </form>
+      <div className="auth-divider">
+        <span>or</span>
+      </div>
+      <DigiLockerComingSoonButton />
+    </>
   );
 }
