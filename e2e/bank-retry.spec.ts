@@ -18,6 +18,7 @@ test("bank freeze retry demo recovers without losing the case or showing HTTP 50
   const citizen = await citizenContext.newPage();
   await citizen.goto("/");
   await citizen.getByRole("button", { name: "Enter citizen demo" }).click();
+  await expect(citizen).toHaveURL(/\/case\/NCRP-26-847193/);
   await citizen.goto("/report");
   await citizen
     .getByLabel("What happened?")
