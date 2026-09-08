@@ -75,7 +75,7 @@ test("citizen summary uses live money, freeze wait, and FIR without inventing a 
 test("citizen summary names FIR review, investigation, and resolved states from case status", () => {
   assert.equal(
     buildCitizenCaseSummary(detail({ status: "FIR_REVIEW" })).happeningNow,
-    "FIR registration is under review.",
+    "Police review started.",
   );
   assert.equal(
     buildCitizenCaseSummary(detail({ status: "INVESTIGATION" })).happeningNow,
@@ -120,7 +120,7 @@ test("citizen summary asks for evidence in plain language and does not invent an
       }),
       { sessionExpired: true },
     ).youNeedToDo,
-    "Sign in to attach requested evidence.",
+    "Sign in to attach the requested document.",
   );
   const registered = buildCitizenCaseSummary(
     detail({

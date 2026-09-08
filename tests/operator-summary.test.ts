@@ -68,7 +68,7 @@ test("operator summary uses live money, freeze wait, SLA remaining and no fake A
   assert.equal(summary.unrecovered, "₹5,300");
   assert.equal(summary.nextAction, "HDFC Bank must respond to freeze request");
   assert.equal(summary.owner, "HDFC Bank — fraud response team");
-  assert.equal(summary.blocker, "waiting for bank acknowledgement");
+  assert.equal(summary.blocker, "Waiting for bank response");
   assert.equal(summary.sla, "27 min remaining");
   assert.equal(summary.aiRecommendation, "No AI recommendation yet");
 });
@@ -83,19 +83,19 @@ test("operator summary names blockers from case state and reuses an existing AI 
         sla: "not_applicable",
       }),
     ).blocker,
-    "beneficiary bank not yet identified",
+    "Beneficiary bank not yet identified",
   );
   assert.equal(
     buildOperatorCaseSummary(detail({ evidenceOpen: true })).blocker,
-    "evidence requested from citizen",
+    "Evidence requested from citizen",
   );
   assert.equal(
     buildOperatorCaseSummary(detail({ status: "FIR_REVIEW" })).blocker,
-    "FIR review pending",
+    "Police review pending",
   );
   assert.equal(
     buildOperatorCaseSummary(detail({ status: "RESOLUTION" })).blocker,
-    "case resolved",
+    "Case resolved",
   );
   assert.equal(
     buildOperatorCaseSummary(
@@ -104,7 +104,7 @@ test("operator summary names blockers from case state and reuses an existing AI 
         sla: "not_applicable",
       }),
     ).blocker,
-    "police assignment pending",
+    "Police assignment pending",
   );
   assert.equal(
     buildOperatorCaseSummary(detail(), {

@@ -53,7 +53,7 @@ function happeningNow(detail: CaseDetail) {
   if (status === "CLOSED") return "Your case has been closed.";
   if (status === "RESOLUTION") return "Your case has been resolved.";
   if (status === "FIR_REGISTERED") return "An FIR has been registered.";
-  if (status === "FIR_REVIEW") return "FIR registration is under review.";
+  if (status === "FIR_REVIEW") return "Police review started.";
   if (status === "INVESTIGATION")
     return "The cyber cell is reviewing the case.";
 
@@ -64,19 +64,20 @@ function happeningNow(detail: CaseDetail) {
   }
   if (hasEvent(detail, "FREEZE_REQUEST_CREATED")) {
     if (hasEvent(detail, "FUNDS_MOVED") || tracing > 0)
-      return "Funds are being traced across another account.";
+      return "Funds traced to another account.";
     return "A freeze request has been sent.";
   }
   if (!hasEvent(detail, "BENEFICIARY_BANK_IDENTIFIED"))
     return "We are identifying the beneficiary bank.";
   if (hasEvent(detail, "FUNDS_MOVED") || tracing > 0)
-    return "Funds are being traced across another account.";
+    return "Funds traced to another account.";
   return "We are identifying the beneficiary bank.";
 }
 
 function youNeedToDo(detail: CaseDetail, sessionExpired: boolean) {
   const request = openEvidenceRequest(detail);
-  if (sessionExpired && request) return "Sign in to attach requested evidence.";
+  if (sessionExpired && request)
+    return "Sign in to attach the requested document.";
   if (!request) return "Nothing right now.";
   const text =
     `${request.title || ""} ${request.description || ""}`.toLowerCase();
@@ -84,7 +85,7 @@ function youNeedToDo(detail: CaseDetail, sessionExpired: boolean) {
     return "Upload the requested transaction receipt.";
   if (/reference|utr|\brrn\b/.test(text))
     return "Provide the transaction reference.";
-  return "Review the evidence request.";
+  return "Upload the requested document.";
 }
 
 export function buildCitizenCaseSummary(

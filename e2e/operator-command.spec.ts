@@ -21,9 +21,7 @@ test("operator command centre summarises the selected case without inventing AI 
   await expect(
     command.getByText("HDFC Bank — fraud response team"),
   ).toBeVisible();
-  await expect(
-    command.getByText("waiting for bank acknowledgement"),
-  ).toBeVisible();
+  await expect(command.getByText("Waiting for bank response")).toBeVisible();
   await expect(
     command.getByText(
       /min remaining|h remaining|Overdue|Waiting|Response received|No active SLA/,

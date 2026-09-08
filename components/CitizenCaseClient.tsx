@@ -486,18 +486,18 @@ export function CitizenCaseClient({
           className="card section citizen-snapshot"
           aria-labelledby="citizen-snapshot-heading"
         >
-          <h2 id="citizen-snapshot-heading">Your case</h2>
+          <h2 id="citizen-snapshot-heading">Your case at a glance</h2>
           <dl>
             <div>
               <dt>Money protected</dt>
               <dd>{snapshot.moneyProtected}</dd>
             </div>
             <div>
-              <dt>What is happening now</dt>
+              <dt>Current status</dt>
               <dd>{snapshot.happeningNow}</dd>
             </div>
             <div>
-              <dt>You need to do</dt>
+              <dt>Your action</dt>
               <dd>{snapshot.youNeedToDo}</dd>
             </div>
             <div>
@@ -689,7 +689,7 @@ export function CitizenCaseClient({
 
             {overdue && escalated && (
               <p className="escalation">
-                Automatic escalation created — a senior desk now owns the delay.
+                The bank was late, so this was sent to a senior desk.
               </p>
             )}
             {!live && (
@@ -703,7 +703,10 @@ export function CitizenCaseClient({
           </article>
         </section>
 
-        <section className="card trail-section" aria-labelledby="trail-heading">
+        <section
+          className="card trail-section secondary-panel"
+          aria-labelledby="trail-heading"
+        >
           <div className="section-heading">
             <div>
               <span className="eyebrow">Money trail</span>
@@ -729,7 +732,7 @@ export function CitizenCaseClient({
 
         <div className="citizen-columns">
           <section
-            className="card section timeline-card"
+            className="card section timeline-card secondary-panel"
             aria-labelledby="timeline-heading"
           >
             <div className="section-heading">
@@ -854,7 +857,7 @@ export function CitizenCaseClient({
         </div>
 
         <section
-          className="card section evidence-section"
+          className="card section evidence-section secondary-panel"
           id="evidence"
           aria-labelledby="evidence-heading"
         >

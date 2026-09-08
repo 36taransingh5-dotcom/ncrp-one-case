@@ -392,6 +392,7 @@
 .citizen-snapshot {
   margin-bottom: 18px;
   padding: 22px 24px;
+  border-left: 4px solid var(--blue);
 }
 .citizen-snapshot h2 {
   margin: 0 0 16px;
@@ -1244,6 +1245,7 @@
 .operator-command {
   position: relative;
   padding: 20px 18px;
+  border-left: 4px solid var(--blue);
 }
 .operator-command h2 {
   position: absolute;
@@ -1299,6 +1301,31 @@
   .operator-command-money {
     grid-template-columns: 1fr;
   }
+}
+
+.secondary-detail {
+  padding: 16px 18px;
+}
+.secondary-detail summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  list-style-position: outside;
+}
+.secondary-detail .timeline,
+.secondary-detail .empty,
+.secondary-detail p {
+  margin-top: 12px;
+}
+.secondary-meta {
+  margin: 4px 0 0 !important;
+  color: var(--muted);
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+.secondary-panel {
+  opacity: 0.98;
 }
 
 /* --- Landing -------------------------------------------------------------- */
@@ -1461,6 +1488,11 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+@media (max-width: 1100px) {
+  .how-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 @media (max-width: 850px) {
   .how-grid {

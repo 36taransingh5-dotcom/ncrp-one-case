@@ -617,9 +617,13 @@ button {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    order: -1;
   }
   .aside .card {
     margin: 0;
+  }
+  .operator-command {
+    grid-column: 1 / -1;
   }
 }
 @media (max-width: 560px) {

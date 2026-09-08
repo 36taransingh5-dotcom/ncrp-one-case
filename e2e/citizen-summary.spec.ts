@@ -8,7 +8,7 @@ test("citizen case summary answers money, current work, action and FIR", async (
     .getByRole("button", { name: "Enter citizen demo", exact: true })
     .click();
   await expect(page).toHaveURL(/\/case\/NCRP-26-847193/);
-  const summary = page.getByRole("region", { name: "Your case" });
+  const summary = page.getByRole("region", { name: "Your case at a glance" });
   await expect(summary.getByText("₹31,200 of ₹48,500")).toBeVisible();
   await expect(
     summary.getByText("HDFC Bank is responding to a freeze request."),

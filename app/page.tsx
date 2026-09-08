@@ -11,15 +11,27 @@ export const dynamic = "force-dynamic";
 const steps = [
   {
     title: "Report once",
-    body: "Describe what happened in your own words. That becomes one case, not a form you repeat at every counter.",
+    body: "Describe what happened in your own words. You do not repeat this at a bank or a police station.",
   },
   {
-    title: "The money is chased first",
-    body: "Banks are asked to hold what can still be held, and every rupee is tracked as secured, being traced, or gone.",
+    title: "One case is created",
+    body: "That report becomes one case that banks, police and the citizen all work from.",
   },
   {
-    title: "Agencies hand over, not you",
-    body: "Cyber cells, police and banks pick the case up from each other. You always see who owns the next action.",
+    title: "AI structures the report",
+    body: "AI organises the facts so the money can be chased immediately. You can still correct anything.",
+  },
+  {
+    title: "Banks, police and evidence stay coordinated",
+    body: "Each task has an owner. The next action is visible instead of being chased across counters.",
+  },
+  {
+    title: "The money is traced",
+    body: "Every rupee is shown as secured, still being traced, or gone — including when it moves to another account.",
+  },
+  {
+    title: "The citizen sees everything here",
+    body: "Protected amount, current status, what to do next, and FIR status stay on one page.",
   },
 ];
 
@@ -121,14 +133,12 @@ export default async function Home() {
         </div>
 
         <a className="landing-path" href="#how">
-          Report once → Money chased → Agencies hand over · See ↓
+          Report once → One case → Money traced · See ↓
         </a>
 
         <section id="how" className="card section how-section">
           <span className="eyebrow">How One Case works</span>
-          <h2>
-            Coordination is the government&rsquo;s job, not the victim&rsquo;s.
-          </h2>
+          <h2>One report. One case. Everyone works from the same picture.</h2>
           <div className="how-grid">
             {steps.map((step, index) => (
               <div className="how-step" key={step.title}>

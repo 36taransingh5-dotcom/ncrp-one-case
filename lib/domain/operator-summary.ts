@@ -84,35 +84,35 @@ function nextActionAndBlocker(detail: CaseDetail) {
   );
 
   if (status === "CLOSED" || status === "RESOLUTION")
-    return { nextAction: "None", blocker: "case resolved" };
+    return { nextAction: "None", blocker: "Case resolved" };
   if (openEvidence)
     return {
       nextAction: "Citizen must attach the requested document",
-      blocker: "evidence requested from citizen",
+      blocker: "Evidence requested from citizen",
     };
   if (freezeWaiting)
     return {
       nextAction: `${bankName(detail.case.current_owner_name)} must respond to freeze request`,
-      blocker: "waiting for bank acknowledgement",
+      blocker: "Waiting for bank response",
     };
   if (status === "FIR_REVIEW")
     return {
-      nextAction: "Complete FIR review",
-      blocker: "FIR review pending",
+      nextAction: "Complete police review",
+      blocker: "Police review pending",
     };
   if (!hasEvent(detail, "BENEFICIARY_BANK_IDENTIFIED"))
     return {
       nextAction: "Identify the beneficiary bank",
-      blocker: "beneficiary bank not yet identified",
+      blocker: "Beneficiary bank not yet identified",
     };
   if (!hasEvent(detail, "CYBER_CELL_ASSIGNED"))
     return {
       nextAction: "Assign the cyber cell",
-      blocker: "police assignment pending",
+      blocker: "Police assignment pending",
     };
   return {
     nextAction: "Operator action required",
-    blocker: "no blocker — operator action required",
+    blocker: "No blocker — operator action required",
   };
 }
 
