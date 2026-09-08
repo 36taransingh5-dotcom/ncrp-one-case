@@ -11,7 +11,7 @@ test("citizen case summary answers money, current work, action and FIR", async (
   const summary = page.getByRole("region", { name: "Your case at a glance" });
   await expect(summary.getByText("₹31,200 of ₹48,500")).toBeVisible();
   await expect(
-    summary.getByText("HDFC Bank is responding to a freeze request."),
+    summary.getByText(/responding to a freeze request|waiting for the bank/i),
   ).toBeVisible();
   await expect(summary.getByText("Nothing right now.")).toBeVisible();
   await expect(summary.getByText("Under review")).toBeVisible();

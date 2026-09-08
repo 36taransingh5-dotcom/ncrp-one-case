@@ -22,11 +22,9 @@ test("operator command centre summarises the selected case without inventing AI 
     command.getByText("HDFC Bank — fraud response team"),
   ).toBeVisible();
   await expect(command.getByText("Waiting for bank response")).toBeVisible();
-  await expect(
-    command.getByText(
-      /min remaining|h remaining|Overdue|Waiting|Response received|No active SLA/,
-    ),
-  ).toBeVisible();
+  await expect(command.locator(".operator-command-facts dd").nth(3)).toHaveText(
+    /min remaining|h remaining|Overdue|Response received|No active SLA/,
+  );
   await expect(command.getByText("No AI recommendation yet")).toBeVisible();
   await expect(command.getByText("27 min remaining")).toHaveCount(0);
 });
