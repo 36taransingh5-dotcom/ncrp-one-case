@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
+import { buildCitizenCaseSummary } from "@/lib/domain/citizen-summary";
 import { MoneyTrail } from "@/components/MoneyTrail";
 import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { DigiLockerConnect } from "@/components/DigiLockerConnect";
@@ -441,6 +442,7 @@ export function CitizenCaseClient({
   const visibleEvents = detail.events.filter((event) =>
     Number(event.citizen_visible),
   );
+  const snapshot = buildCitizenCaseSummary(detail, { sessionExpired });
 
   return (
     <>
@@ -480,6 +482,31 @@ export function CitizenCaseClient({
       </header>
 
       <main className="shell citizen-main">
+        <section
+          className="card section citizen-snapshot"
+          aria-labelledby="citizen-snapshot-heading"
+        >
+          <h2 id="citizen-snapshot-heading">Your case</h2>
+          <dl>
+            <div>
+              <dt>Money protected</dt>
+              <dd>{snapshot.moneyProtected}</dd>
+            </div>
+            <div>
+              <dt>What is happening now</dt>
+              <dd>{snapshot.happeningNow}</dd>
+            </div>
+            <div>
+              <dt>You need to do</dt>
+              <dd>{snapshot.youNeedToDo}</dd>
+            </div>
+            <div>
+              <dt>FIR</dt>
+              <dd>{snapshot.firStatus}</dd>
+              {snapshot.firNumber ? <p>{snapshot.firNumber}</p> : null}
+            </div>
+          </dl>
+        </section>
         <details className="card section">
           <summary>Your submitted report and additional details</summary>
           <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
