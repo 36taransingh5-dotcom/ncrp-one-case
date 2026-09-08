@@ -5,7 +5,10 @@ import type { CaseDetail, CaseListRow } from "@/lib/types";
 import { calculateSlaTiming } from "@/lib/domain/sla";
 import { createSupabaseServerClient } from "./server";
 import { enqueueJobsForCaseEvent } from "@/lib/jobs/enqueue";
-import { processIntegrationJobs } from "@/lib/jobs/process";
+import {
+  processIntegrationJobs,
+  processOutboxEvents,
+} from "@/lib/jobs/process";
 import { logFailure } from "@/lib/observability";
 
 /** Commands that queue a bank/police/reporting integration job. */
@@ -298,6 +301,7 @@ export async function createSupabaseCase(input: {
     if (caseRow?.id)
       await enqueueJobsForCaseEvent(String(caseRow.id), "CASE_CREATED");
     await processIntegrationJobs(`inline:create:${crypto.randomUUID()}`, 10);
+    await processOutboxEvents(`inline:outbox:${crypto.randomUUID()}`, 10);
   } catch (jobError) {
     logFailure("intake.inline_job_processing_failed", jobError);
   }
@@ -321,11 +325,11 @@ export async function executeSupabaseCommand(input: {
   });
   if (error) fail(error, "Operator command failed.");
   // Vercel's cron ceiling (once/day on Hobby) is far too slow for a citizen
-  // to see a bank/police response in the same session, so drain
-  // the freshly queued job inline. Best-effort: on failure the job stays
+  // to see a bank/police response or receive mail in the same session, so
+  // drain freshly queued work inline. Best-effort: on failure the job stays
   // queued and the daily cron (or a manual worker run) still picks it up.
-  if (JOB_QUEUEING_ACTIONS.has(input.action)) {
-    try {
+  try {
+    if (JOB_QUEUEING_ACTIONS.has(input.action)) {
       if (input.action === "IDENTIFY_BENEFICIARY_BANK") {
         const { data: caseRow } = await supabase
           .from("cases")
@@ -339,12 +343,13 @@ export async function executeSupabaseCommand(input: {
           );
       }
       await processIntegrationJobs(`inline:${crypto.randomUUID()}`, 5);
-    } catch (jobError) {
-      logFailure("operator.inline_job_processing_failed", jobError, {
-        publicCaseId: input.publicCaseId,
-        action: input.action,
-      });
     }
+    await processOutboxEvents(`inline:outbox:${crypto.randomUUID()}`, 10);
+  } catch (jobError) {
+    logFailure("operator.inline_job_processing_failed", jobError, {
+      publicCaseId: input.publicCaseId,
+      action: input.action,
+    });
   }
   return getSupabaseCaseDetail(input.publicCaseId, true);
 }

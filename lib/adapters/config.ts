@@ -170,6 +170,10 @@ export function getResendFromAddress() {
   );
 }
 
+export function resendUsesSharedTestSender(from = getResendFromAddress()) {
+  return /onboarding@resend\.dev/i.test(from);
+}
+
 export function getNotificationProvider(): NotificationProvider {
   return resolveNotificationProvider(
     process.env.NCRP_NOTIFICATION_MODE || "",

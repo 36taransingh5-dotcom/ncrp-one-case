@@ -29,6 +29,7 @@ export {
   notificationStatusLabel,
   resendConfigured,
   getResendFromAddress,
+  resendUsesSharedTestSender,
 } from "./config";
 export type {
   IntegrationMode,

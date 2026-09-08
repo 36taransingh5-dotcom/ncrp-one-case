@@ -1,5 +1,11 @@
 /** Transactional templates. Never include amounts, accounts or narratives. */
 export const EMAIL_EVENT_TEMPLATES = {
+  CASE_CREATED: {
+    subject: (publicCaseId: string) =>
+      `Case ${publicCaseId}: your report was received`,
+    text: (publicCaseId: string) =>
+      `Your report was recorded as case ${publicCaseId}. Sign in to the case page to follow the coordination desk. This message does not include payment or account details.`,
+  },
   EVIDENCE_REQUESTED: {
     subject: (publicCaseId: string) =>
       `Case ${publicCaseId}: more information requested`,

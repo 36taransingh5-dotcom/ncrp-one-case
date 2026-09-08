@@ -4,6 +4,7 @@ import { isLocalBackend } from "@/lib/supabase/config";
 import {
   adapterStatusLabel,
   notificationStatusLabel,
+  resendUsesSharedTestSender,
   type StatusLabel,
 } from "./config";
 import { getApiSetuMode, getDigiLockerMode } from "./identity";
@@ -79,7 +80,9 @@ export function getIntegrationStatusRows(): IntegrationStatusRow[] {
       status: notificationStatusLabel(),
       detail:
         notificationStatusLabel() === "LIVE"
-          ? "Resend sends transactional case emails from the durable outbox."
+          ? resendUsesSharedTestSender()
+            ? "Resend is live, but the shared test sender only delivers to the Resend account owner. Set RESEND_FROM to an address on a verified domain to email the citizen who filed the case."
+            : "Resend sends transactional case emails to the citizen sign-in address."
           : notificationStatusLabel() === "SANDBOX"
             ? "Notification HTTP sandbox is bound. No live inbox."
             : notificationStatusLabel() === "NOT CONFIGURED"

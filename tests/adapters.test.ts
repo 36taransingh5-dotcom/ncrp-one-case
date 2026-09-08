@@ -14,6 +14,7 @@ import {
   resolveProviderBinding,
   resolveResendFromAddress,
   resendApiKeyPresent,
+  resendUsesSharedTestSender,
 } from "../lib/adapters/config";
 import { executeIntegrationAction } from "../lib/adapters/execute";
 import { createHttpBankAdapter } from "../lib/adapters/http";
@@ -273,7 +274,13 @@ test("email templates omit amounts and account data", () => {
   const text = funds.text("NCRP-26-111111");
   assert.equal(emailContainsSensitiveFinancialData(text), false);
   assert.match(text, /NCRP-26-111111/);
-  assert.equal(emailTemplateFor("CASE_CREATED"), null);
+  const created = emailTemplateFor("CASE_CREATED");
+  assert.ok(created);
+  assert.equal(
+    emailContainsSensitiveFinancialData(created.text("NCRP-26-111111")),
+    false,
+  );
+  assert.match(created.text("NCRP-26-111111"), /NCRP-26-111111/);
 });
 
 test("DigiLocker and API Setu stay disabled without credentials", () => {
@@ -301,4 +308,9 @@ test("Resend binds from API key alone and defaults the test sender", () => {
     "simulated",
   );
   assert.equal(resolveNotificationProvider("", false, "http"), "http");
+  assert.equal(resendUsesSharedTestSender(RESEND_TEST_FROM), true);
+  assert.equal(
+    resendUsesSharedTestSender("NCRP One Case <noreply@example.org>"),
+    false,
+  );
 });
