@@ -1245,8 +1245,16 @@
   padding: 20px 18px;
 }
 .operator-command h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.operator-command-case {
   margin: 4px 0 10px;
   font-size: 22px;
+  font-weight: 700;
   letter-spacing: -0.04em;
 }
 .operator-command-reported {

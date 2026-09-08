@@ -557,7 +557,8 @@ export function OperationsClient({
             aria-labelledby="operator-command-heading"
           >
             <div className="label">Command centre</div>
-            <h2 id="operator-command-heading">Case {command.caseId}</h2>
+            <h2 id="operator-command-heading">Command centre</h2>
+            <p className="operator-command-case">Case {command.caseId}</p>
             <p className="operator-command-reported">
               {command.reported} reported
             </p>
