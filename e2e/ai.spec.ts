@@ -1,5 +1,24 @@
 import { test, expect } from "@playwright/test";
 
+test("simple report hides optional details and supports payment shortcuts", async ({
+  page,
+}) => {
+  await page.goto("/report");
+  await expect(
+    page.getByLabel("Suspect name (if known)", { exact: true }),
+  ).toBeHidden();
+  await expect(page.getByLabel("Identity document type")).toBeHidden();
+  await page.getByRole("button", { name: "I don’t know the bank" }).click();
+  await expect(page.getByLabel("Bank, wallet or merchant name")).toHaveValue(
+    "Unknown",
+  );
+  await page.getByLabel("When did it happen?").fill("2026-09-08T14:15");
+  await page.getByRole("button", { name: "Use the incident date" }).click();
+  await expect(
+    page.getByLabel("Date of transaction", { exact: true }),
+  ).toHaveValue("2026-09-08");
+});
+
 test("AI auth and unavailable-provider behaviour leave manual reporting available", async ({
   page,
   request,
@@ -21,9 +40,7 @@ test("AI auth and unavailable-provider behaviour leave manual reporting availabl
   });
   expect(wrongRole.status()).toBe(401);
   await page.goto("/report");
-  const institutionInput = page.getByLabel(
-    "Institution or masked account details (optional)",
-  );
+  const institutionInput = page.getByLabel("Date of transaction");
   const aiSection = page.getByRole("region", { name: "AI report analysis" });
   const institutionBox = await institutionInput.boundingBox();
   const aiBox = await aiSection.boundingBox();

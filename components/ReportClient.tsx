@@ -35,7 +35,7 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
     localDemo ? defaultDescription : "",
   );
   const [amount, setAmount] = useState(localDemo ? "48500" : "");
-  const [fraudType, setFraudType] = useState("Bank impersonation / phishing");
+  const [fraudType, setFraudType] = useState("Other financial cyber fraud");
   const [paymentChannel, setPaymentChannel] = useState("Bank transfer");
   const [incidentAt, setIncidentAt] = useState(() =>
     localDemo ? new Date().toISOString().slice(0, 16) : "",
@@ -298,8 +298,24 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
   }
 
   return (
-    <form className="form" onSubmit={understandCase}>
-      <span className="eyebrow">Step 1 of 2 · Describe</span>
+    <form
+      className="form report-easy"
+      onSubmit={understandCase}
+      onInvalidCapture={(event) => {
+        const element = event.target as HTMLElement;
+        const group = element.closest("details");
+        if (group) group.open = true;
+      }}
+    >
+      <div className="report-intro">
+        <span className="eyebrow">Tell us · Review · Create demo case</span>
+        <h2>You don’t need to know every detail.</h2>
+        <p>
+          Start with what you remember. Leave optional details for later. You’ll
+          review everything before creating a case.
+        </p>
+      </div>
+      <h3>1 · Tell your story</h3>
       <label>
         What happened?
         <textarea
@@ -310,6 +326,7 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           maxLength={3000}
           aria-describedby="description-help"
           rows={7}
+          placeholder="How were you contacted? What did they ask you to do? What happened next, and when did you notice the loss? Write in your own words."
         />
       </label>
       <p id="description-help" className="footer-note">
@@ -328,20 +345,26 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           required
         />
       </label>
-      <label>
-        Fraud category
-        <select
-          value={fraudType}
-          onChange={(event) => setFraudType(event.target.value)}
-          required
-        >
-          <option>Bank impersonation / phishing</option>
-          <option>Investment scam</option>
-          <option>Marketplace fraud</option>
-          <option>OTP / account takeover</option>
-          <option>Other financial cyber fraud</option>
-        </select>
-      </label>
+      <details className="report-optional">
+        <summary>
+          Choose a fraud category{" "}
+          <span>Optional · use AI help below if unsure</span>
+        </summary>
+        <label>
+          Fraud category
+          <select
+            value={fraudType}
+            onChange={(event) => setFraudType(event.target.value)}
+            required
+          >
+            <option>Bank impersonation / phishing</option>
+            <option>Investment scam</option>
+            <option>Marketplace fraud</option>
+            <option>OTP / account takeover</option>
+            <option>Other financial cyber fraud</option>
+          </select>
+        </label>
+      </details>
       <label>
         Payment channel
         <select
@@ -365,22 +388,30 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           required
         />
       </label>
-      <label>
-        Transaction reference (optional)
-        <input
-          value={transactionReference}
-          onChange={(event) => setTransactionReference(event.target.value)}
-          maxLength={120}
-        />
-      </label>
-      <label>
-        Institution or masked account details (optional)
-        <input
-          value={institutionDetails}
-          onChange={(event) => setInstitutionDetails(event.target.value)}
-          maxLength={160}
-        />
-      </label>
+      <details className="report-optional">
+        <summary>
+          Add a payment reference or account details{" "}
+          <span>Optional · if you have your receipt</span>
+        </summary>
+        <div className="form">
+          <label>
+            Transaction reference (optional)
+            <input
+              value={transactionReference}
+              onChange={(event) => setTransactionReference(event.target.value)}
+              maxLength={120}
+            />
+          </label>
+          <label>
+            Institution or masked account details (optional)
+            <input
+              value={institutionDetails}
+              onChange={(event) => setInstitutionDetails(event.target.value)}
+              maxLength={160}
+            />
+          </label>
+        </div>
+      </details>
       <ReportDetailsFields
         details={details}
         onChange={setDetails}
@@ -388,7 +419,13 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
         onFiles={setAttachments}
         syntheticOnly={syntheticOnly}
         onSynthetic={setSyntheticOnly}
+        incidentDate={incidentAt.slice(0, 10)}
       />
+      <h3>3 · Check before you continue</h3>
+      <p className="footer-note">
+        AI help is optional. It can pull details from your story for you to
+        review. You can also go straight to Continue.
+      </p>
       <AiAnalysis
         description={description}
         onAccept={(result) => {

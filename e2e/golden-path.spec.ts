@@ -39,11 +39,17 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
     .getByLabel("Date of transaction", { exact: true })
     .fill("2026-09-08");
   await citizen
+    .getByText("Add details about the suspect", { exact: false })
+    .click();
+  await citizen
     .getByLabel("Suspect name (if known)", { exact: true })
     .fill("Synthetic Suspect Alpha");
   await citizen
     .getByLabel("I confirm all information", { exact: false })
     .check();
+  await citizen
+    .getByText("Add documents or screenshots", { exact: false })
+    .click();
   await citizen
     .getByLabel("Supporting evidence / suspect photograph", { exact: false })
     .setInputFiles({
@@ -51,6 +57,9 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
       mimeType: "text/plain",
       buffer: Buffer.from("Synthetic intake evidence only."),
     });
+  await citizen
+    .getByText("Add a payment reference or account details", { exact: false })
+    .click();
   await citizen
     .getByLabel("Transaction reference (optional)")
     .fill("SIM-E2E-6700");
