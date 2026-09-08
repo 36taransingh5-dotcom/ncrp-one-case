@@ -536,6 +536,12 @@ export function OperationsClient({
           </div>
         </section>
         <aside className="aside">
+          <details className="card section">
+            <summary>Citizen-submitted report and additional details</summary>
+            <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+              {String(detail.incident.raw_description || "No report supplied.")}
+            </p>
+          </details>
           <AiAnalysis
             key={`${selectedCaseId}:${selected.version}`}
             caseId={selectedCaseId}

@@ -476,6 +476,12 @@ export function CitizenCaseClient({
       </header>
 
       <main className="shell citizen-main">
+        <details className="card section">
+          <summary>Your submitted report and additional details</summary>
+          <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {String(incident.raw_description || "No report supplied.")}
+          </p>
+        </details>
         {toast && (
           <div className="toast" role="status" aria-live="polite">
             <span className="toast-dot" aria-hidden />

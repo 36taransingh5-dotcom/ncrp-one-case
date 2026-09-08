@@ -62,6 +62,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [SEEDING.md](SEEDING
 
 # AI case intelligence
 
+## Expanded citizen intake
+
+The report form collects a 200–3,000 character narrative, incident location, bank/wallet/merchant and transaction date, optional suspect name/contact/account/address/URL/handle, synthetic identity type, and evidence notes. Additional fields are validated server-side and appended as labelled citizen-supplied information to the existing incident record within the case-creation transaction (not separate normalized suspect entities). Both citizen and operator views expose the submitted record. Combined narrative length is capped at 5,000 characters.
+
+Citizens can select one synthetic JPG/PNG identity document and up to four supporting PDF/JPG/PNG/text files before confirmation, limited to 4 MB each in this form. Files upload through the existing private, SHA-256-checked evidence endpoint after the case is created. If an upload fails, the review screen retains the created case reference and retries only pending uploads; citizens can also open the created case and upload later. Selected files are held in page memory, not durable drafts. Reloading loses unsubmitted selections. Identity collection is optional, synthetic-only, and not identity verification. The form is informed by the public NCRP checklist, not certified as an official filing interface. AI analysis remains description-only; attachments are not sent to AI.
+
 Citizen intake includes **Analyse report** and explicit acceptance into editable fields. Operations includes an advisory **AI Case Brief** with known/inferred/missing information and a constrained next-action suggestion. Core reporting and domain commands work independently of AI availability.
 
 Configure `OPENAI_API_KEY` as a server-only Vercel Production secret and `OPENAI_MODEL` (default `gpt-4.1-mini`), then redeploy. Never use a `NEXT_PUBLIC_` key. Until a valid key is configured, the analysis controls display a recoverable unavailable message. Live model quality must be verified with the synthetic scenario in the AI brief before claiming a completed AI demo. Evidence analysis and persistent analysis history remain P1.

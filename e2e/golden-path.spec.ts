@@ -25,19 +25,62 @@ test("citizen creates a case, uploads evidence, and receives the operator fund u
   await citizen
     .getByLabel("What happened?")
     .fill(
-      "Synthetic report: a caller impersonated a bank and induced an unauthorised UPI payment.",
+      "Synthetic report: a caller impersonated a bank and induced an unauthorised UPI payment. The caller contacted me on a messaging app and claimed my account needed urgent verification. I discovered the loss when I checked my synthetic statement and kept the chat screenshots.",
     );
   await citizen.getByLabel("How much money did you lose? (₹)").fill("6700");
   await citizen.getByLabel("When did it happen?").fill("2026-09-08T14:15");
   await citizen
+    .getByLabel("Incident location / state")
+    .fill("Synthetic Delhi location");
+  await citizen
+    .getByLabel("Bank, wallet or merchant name")
+    .fill("Example Demo Bank");
+  await citizen
+    .getByLabel("Date of transaction", { exact: true })
+    .fill("2026-09-08");
+  await citizen
+    .getByLabel("Suspect name (if known)", { exact: true })
+    .fill("Synthetic Suspect Alpha");
+  await citizen
+    .getByLabel("I confirm all information", { exact: false })
+    .check();
+  await citizen
+    .getByLabel("Supporting evidence / suspect photograph", { exact: false })
+    .setInputFiles({
+      name: "intake-proof.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Synthetic intake evidence only."),
+    });
+  await citizen
     .getByLabel("Transaction reference (optional)")
     .fill("SIM-E2E-6700");
   await citizen.getByRole("button", { name: "Continue" }).click();
+  let intakeRequests = 0;
+  citizen.on("request", (request) => {
+    if (request.url().endsWith("/api/intake") && request.method() === "POST")
+      intakeRequests++;
+  });
+  await citizen.route(
+    "**/api/evidence",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        json: { error: "Synthetic temporary upload failure" },
+      }),
+    { times: 1 },
+  );
   await citizen
     .getByRole("button", { name: "Confirm and create case" })
     .click();
+  await expect(
+    citizen.getByRole("button", { name: "Retry pending uploads" }),
+  ).toBeVisible();
+  await citizen.getByRole("button", { name: "Retry pending uploads" }).click();
   await expect(citizen).toHaveURL(/\/case\/NCRP-\d{2}-\d{6}$/);
+  expect(intakeRequests).toBe(1);
   const publicCaseId = citizen.url().split("/").at(-1)!;
+  const persisted = await citizen.request.get(`/api/cases/${publicCaseId}`);
+  expect(await persisted.text()).toContain("Synthetic Suspect Alpha");
 
   await citizen
     .getByLabel("What is this document?")
