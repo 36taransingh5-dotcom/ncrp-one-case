@@ -42,11 +42,13 @@ function payloadOf(job: JobRow): Record<string, unknown> {
 
 export function listLocalIntegrationJobs(caseId: string) {
   initializeDatabase();
-  return db
-    .prepare(
-      "SELECT id,provider,action,status,external_reference,attempt_count,max_attempts,last_error,created_at,completed_at,updated_at FROM integration_jobs WHERE case_id=? ORDER BY created_at DESC",
-    )
-    .all(caseId) as Record<string, unknown>[];
+  return (
+    db
+      .prepare(
+        "SELECT id,provider,action,status,external_reference,attempt_count,max_attempts,last_error,created_at,completed_at,updated_at FROM integration_jobs WHERE case_id=? ORDER BY created_at DESC",
+      )
+      .all(caseId) as Record<string, unknown>[]
+  ).map((row) => ({ ...row }));
 }
 
 export function enqueueLocalFreezeJob(input: {
