@@ -44,6 +44,10 @@ export const simulatedBankAdapter: BankAdapter = {
     });
     return { status: "completed", securedAmount: 0 };
   },
+  async traceFunds(caseId) {
+    logEvent("adapter.bank.trace_funds", { caseId, adapter: "simulated" });
+    return { traceReference: reference("TRACE", caseId), hops: 1 };
+  },
   async reconcile(providerReference) {
     logEvent("adapter.bank.reconcile", {
       providerReference,
@@ -71,6 +75,10 @@ export const simulatedPoliceAdapter: PoliceAdapter = {
     logEvent("adapter.police.register_fir", { caseId, adapter: "simulated" });
     return { firNumber: syntheticFirNumber(caseId) };
   },
+  async getStatus(caseId) {
+    logEvent("adapter.police.get_status", { caseId, adapter: "simulated" });
+    return { status: "registered", firNumber: syntheticFirNumber(caseId) };
+  },
 };
 export const simulatedReportingAdapter: FraudReportingAdapter = {
   async createExternalComplaint(caseId) {
@@ -79,6 +87,13 @@ export const simulatedReportingAdapter: FraudReportingAdapter = {
       adapter: "simulated",
     });
     return { externalReference: reference("NCRP", caseId) };
+  },
+  async getComplaintStatus(externalReference) {
+    logEvent("adapter.reporting.complaint_status", {
+      caseId: externalReference,
+      adapter: "simulated",
+    });
+    return { status: "accepted" };
   },
 };
 export const simulatedNotificationAdapter: NotificationAdapter = {

@@ -81,6 +81,18 @@ export function createHttpBankAdapter(override?: HttpBinding): BankAdapter {
         body: { caseId, accountRef, amount, ...callbackFields() },
       });
     },
+    async traceFunds(caseId, transactionRef, context) {
+      const binding = requireBinding("bank", override);
+      logEvent("adapter.bank.trace_funds", { caseId, adapter: "http" });
+      return integrationFetch({
+        ...binding,
+        provider: "bank",
+        path: "/v1/fund-traces",
+        idempotencyKey: context?.idempotencyKey || `bank:trace:${caseId}`,
+        timeoutMs: contextTimeout(context?.timeoutMs),
+        body: { caseId, transactionRef, ...callbackFields() },
+      });
+    },
     async getFreezeStatus(providerReference, context) {
       const binding = requireBinding("bank", override);
       logEvent("adapter.bank.freeze_status", {
@@ -160,6 +172,18 @@ export function createHttpPoliceAdapter(override?: HttpBinding): PoliceAdapter {
         body: { caseId, ...callbackFields() },
       });
     },
+    async getStatus(caseId, context) {
+      const binding = requireBinding("police", override);
+      logEvent("adapter.police.get_status", { caseId, adapter: "http" });
+      return integrationFetch({
+        ...binding,
+        provider: "police",
+        method: "GET",
+        path: `/v1/cases/${encodeURIComponent(caseId)}`,
+        idempotencyKey: context?.idempotencyKey || `police:status:${caseId}`,
+        timeoutMs: contextTimeout(context?.timeoutMs),
+      });
+    },
   };
 }
 
@@ -180,6 +204,22 @@ export function createHttpReportingAdapter(
         idempotencyKey: context?.idempotencyKey || `reporting:${caseId}`,
         timeoutMs: contextTimeout(context?.timeoutMs),
         body: { caseId, ...callbackFields() },
+      });
+    },
+    async getComplaintStatus(externalReference, context) {
+      const binding = requireBinding("reporting", override);
+      logEvent("adapter.reporting.complaint_status", {
+        caseId: externalReference,
+        adapter: "http",
+      });
+      return integrationFetch({
+        ...binding,
+        provider: "reporting",
+        method: "GET",
+        path: `/v1/complaints/${encodeURIComponent(externalReference)}`,
+        idempotencyKey:
+          context?.idempotencyKey || `reporting:status:${externalReference}`,
+        timeoutMs: contextTimeout(context?.timeoutMs),
       });
     },
   };

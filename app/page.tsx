@@ -1,4 +1,5 @@
 import { DemoEntry } from "@/components/DemoEntry";
+import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { currentSession } from "@/lib/auth";
 import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 
@@ -30,11 +31,7 @@ export default async function Home() {
     : "/auth";
   return (
     <>
-      <div className="notice">
-        Independent hackathon prototype — not an official government service.
-        All identities, institutions, transactions and external actions are
-        synthetic or simulated.
-      </div>
+      <PrototypeNotice />
       <main className="shell">
         <nav className="nav">
           <div className="brand">
@@ -142,11 +139,9 @@ export default async function Home() {
         </section>
 
         <p className="footer-note">
-          Built for Build What Moves India. This prototype does not file
-          official complaints, contact live banks or police, freeze real money,
-          or register a real FIR. Bank, police and reporting adapters may call
-          authenticated HTTP sandbox or partner endpoints when configured;
-          otherwise they stay simulated.
+          Built for Build What Moves India. Official NCRP, bank and police
+          systems are not connected. Adapters may be live, sandbox or simulated
+          — check operator integration status for the current binding.
         </p>
       </main>
     </>

@@ -4,6 +4,7 @@ import { ensureDemoData } from "@/lib/demo";
 import { getCaseDetail } from "@/lib/repository";
 import { isLocalBackend } from "@/lib/supabase/config";
 import { CitizenCaseClient } from "@/components/CitizenCaseClient";
+import { getDigiLockerMode } from "@/lib/adapters/identity";
 export const dynamic = "force-dynamic";
 export default async function CasePage({
   params,
@@ -23,6 +24,7 @@ export default async function CasePage({
       initial={detail}
       caseId={caseId}
       realtimeMode={isLocalBackend() ? "sse" : "supabase"}
+      digiLockerEnabled={getDigiLockerMode() !== "disabled"}
     />
   );
 }

@@ -31,6 +31,11 @@ export interface BankAdapter {
     status: "pending" | "acknowledged" | "completed";
     securedAmount: number;
   }>;
+  traceFunds(
+    caseId: string,
+    transactionRef: string,
+    context?: IntegrationContext,
+  ): Promise<{ traceReference: string; hops: number }>;
   reconcile(
     providerReference: string,
     context?: IntegrationContext,
@@ -49,16 +54,33 @@ export interface PoliceAdapter {
     caseId: string,
     context?: IntegrationContext,
   ): Promise<{ firNumber: string }>;
+  getStatus(
+    caseId: string,
+    context?: IntegrationContext,
+  ): Promise<{ status: string; firNumber?: string }>;
 }
 export interface FraudReportingAdapter {
   createExternalComplaint(
     caseId: string,
     context?: IntegrationContext,
   ): Promise<{ externalReference: string }>;
+  getComplaintStatus(
+    externalReference: string,
+    context?: IntegrationContext,
+  ): Promise<{ status: string }>;
 }
+export type NotificationMessage = {
+  recipient: string;
+  template: string;
+  caseReference: string;
+  to?: string;
+  publicCaseId?: string;
+  subject?: string;
+  text?: string;
+};
 export interface NotificationAdapter {
   send(
-    input: { recipient: string; template: string; caseReference: string },
+    input: NotificationMessage,
     context?: IntegrationContext,
-  ): Promise<{ messageReference: string }>;
+  ): Promise<{ messageReference: string; provider?: string }>;
 }

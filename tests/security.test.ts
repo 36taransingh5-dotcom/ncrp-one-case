@@ -16,6 +16,10 @@ const httpIntegrations = fs.readFileSync(
   "supabase/migrations/012_http_integrations.sql",
   "utf8",
 );
+const emailDeliveries = fs.readFileSync(
+  "supabase/migrations/013_email_deliveries.sql",
+  "utf8",
+);
 
 test("RLS scopes citizen case, evidence, event, and notification reads", () => {
   assert.match(rls, /cases_select[\s\S]*owns_case\(id\)/);
@@ -82,4 +86,16 @@ test("application job specs use the same idempotency keys as the SQL trigger", (
   );
   assert.match(httpIntegrations, /'bank:identify:' \|\| new\.case_id::text/);
   assert.match(httpIntegrations, /'bank:notify:' \|\| new\.case_id::text/);
+});
+
+test("email delivery receipts are operator-readable and not client-writable", () => {
+  assert.match(
+    emailDeliveries,
+    /create policy email_deliveries_operator_select/,
+  );
+  assert.match(emailDeliveries, /using \(public\.is_operator\(\)\)/);
+  assert.doesNotMatch(
+    emailDeliveries,
+    /grant insert on public\.email_deliveries/,
+  );
 });

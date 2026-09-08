@@ -72,6 +72,11 @@ async function sandboxResponse(
     adapter: "sandbox",
   });
 
+  if (provider === "bank" && joined === "v1/fund-traces")
+    return NextResponse.json({
+      traceReference: sandboxReference("TRACE", idempotencyKey),
+      hops: 1,
+    });
   if (provider === "bank" && joined === "v1/fraud-notifications")
     return NextResponse.json({
       accepted: true,
@@ -112,10 +117,17 @@ async function sandboxResponse(
     return NextResponse.json({
       firNumber: `SBX-FIR-${sandboxReference("FIR", caseId).slice(-6)}/2026`,
     });
+  if (provider === "police" && joined.startsWith("v1/cases/"))
+    return NextResponse.json({
+      status: "registered",
+      firNumber: `SBX-FIR-${sandboxReference("FIR", caseId).slice(-6)}/2026`,
+    });
   if (provider === "reporting" && joined === "v1/complaints")
     return NextResponse.json({
       externalReference: sandboxReference("NCRP", caseId),
     });
+  if (provider === "reporting" && joined.startsWith("v1/complaints/"))
+    return NextResponse.json({ status: "accepted" });
   if (provider === "notification" && joined === "v1/messages")
     return NextResponse.json({
       messageReference: sandboxReference("NOTICE", caseId),

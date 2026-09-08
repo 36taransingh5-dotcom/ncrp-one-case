@@ -17,8 +17,16 @@ import {
   signWebhookBody,
   verifyWebhookSignature,
 } from "../lib/adapters/signature";
-import { parseSignedWebhook } from "../lib/adapters/webhook-parse";
+import {
+  parseSignedWebhook,
+  webhookTimestampIsFresh,
+} from "../lib/adapters/webhook-parse";
 import { isMissingRelation, jobsForCaseEvent } from "../lib/jobs/event-jobs";
+import {
+  emailContainsSensitiveFinancialData,
+  emailTemplateFor,
+} from "../lib/adapters/email-templates";
+import { getApiSetuMode, getDigiLockerMode } from "../lib/adapters/identity";
 
 async function withServer(
   handler: (
@@ -231,4 +239,40 @@ test("webhook signatures are required and compared in constant time", () => {
     () => parseSignedWebhook(body, "sha256=000000", secret),
     /Invalid webhook signature/,
   );
+});
+
+test("webhook timestamps outside the replay window are rejected", () => {
+  assert.equal(webhookTimestampIsFresh(new Date().toISOString()), true);
+  assert.equal(webhookTimestampIsFresh(undefined), true);
+  assert.equal(
+    webhookTimestampIsFresh(new Date(Date.now() - 11 * 60_000).toISOString()),
+    false,
+  );
+  const secret = "webhook-secret";
+  const body = JSON.stringify({
+    eventId: "evt-87654321",
+    eventType: "freeze.acknowledged",
+    provider: "bank",
+    caseId: "11111111-1111-1111-1111-111111111111",
+    occurredAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+  });
+  const signature = signWebhookBody(secret, body);
+  assert.throws(
+    () => parseSignedWebhook(body, signature, secret),
+    /timestamp is outside/,
+  );
+});
+
+test("email templates omit amounts and account data", () => {
+  const funds = emailTemplateFor("FUNDS_SECURED");
+  assert.ok(funds);
+  const text = funds.text("NCRP-26-111111");
+  assert.equal(emailContainsSensitiveFinancialData(text), false);
+  assert.match(text, /NCRP-26-111111/);
+  assert.equal(emailTemplateFor("CASE_CREATED"), null);
+});
+
+test("DigiLocker and API Setu stay disabled without credentials", () => {
+  assert.equal(getDigiLockerMode(), "disabled");
+  assert.equal(getApiSetuMode(), "disabled");
 });

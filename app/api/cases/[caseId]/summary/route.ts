@@ -40,7 +40,7 @@ export async function GET(
     .join("\n");
   const summary = [
     "NCRP ONE CASE — SYNTHETIC CASE SUMMARY",
-    "Independent hackathon prototype. Not an official government service.",
+    "Independent prototype. External institutional integrations may be simulated unless marked live.",
     "All identities, institutions, transactions and agency actions below are synthetic or simulated.",
     "",
     `Case: ${String(c.public_case_id)}`,

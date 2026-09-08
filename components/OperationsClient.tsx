@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
 import { AiAnalysis } from "./AiAnalysis";
+import { PrototypeNotice } from "./PrototypeNotice";
 
 type Row = Record<string, unknown>;
 type SimpleAction =
@@ -339,12 +340,7 @@ export function OperationsClient({
     ];
   return (
     <>
-      <div className="notice">
-        Operations demo · Independent hackathon prototype.
-        {httpIntegrations
-          ? " Bank, police and reporting calls go over authenticated HTTP to configured partner or sandbox endpoints. Identities remain synthetic — this is not an official NCRP or bank connection."
-          : " External banking, police, FIR and reporting systems are simulated behind adapters."}
-      </div>
+      <PrototypeNotice extra="Bank, police and reporting calls are sandbox or simulated unless marked live." />
       <header className="dash-head">
         <div className="shell case-title">
           <div>
@@ -358,6 +354,9 @@ export function OperationsClient({
             </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
+            <a className="btn secondary" href="/integrations">
+              Integration status
+            </a>
             <a
               className="btn secondary"
               href={`/case/${selectedCaseId}`}
@@ -466,7 +465,7 @@ export function OperationsClient({
                           {String(row.public_case_id)}
                         </button>
                         {row.public_case_id === "NCRP-26-847193" && (
-                          <span className="demo-tag">Demo case</span>
+                          <span className="demo-tag">Sample case</span>
                         )}
                       </td>
                       <td>{String(row.full_name)}</td>

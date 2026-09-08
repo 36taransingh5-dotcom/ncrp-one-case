@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
 import { MoneyTrail } from "@/components/MoneyTrail";
+import { DigiLockerConnect } from "@/components/DigiLockerConnect";
+import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Row = Record<string, unknown>;
@@ -169,10 +171,12 @@ export function CitizenCaseClient({
   initial,
   caseId,
   realtimeMode = "sse",
+  digiLockerEnabled = false,
 }: {
   initial: CaseDetail;
   caseId: string;
   realtimeMode?: "sse" | "supabase";
+  digiLockerEnabled?: boolean;
 }) {
   const [detail, setDetail] = useState(initial);
   const detailRef = useRef(initial);
@@ -437,10 +441,7 @@ export function CitizenCaseClient({
 
   return (
     <>
-      <div className="notice">
-        Independent hackathon prototype — not an official government service.
-        All identities, institutions, transactions and actions are synthetic.
-      </div>
+      <PrototypeNotice />
 
       <header className="case-header">
         <div className="shell case-header-inner">
@@ -858,6 +859,8 @@ export function CitizenCaseClient({
             </div>
           )}
 
+          <DigiLockerConnect enabled={digiLockerEnabled} />
+
           <form className="form evidence-form" onSubmit={onUpload}>
             <label>
               What is this document?
@@ -904,9 +907,8 @@ export function CitizenCaseClient({
         </section>
 
         <p className="footer-note">
-          This is an independent prototype built for Build What Moves India. It
-          does not file complaints, contact banks or police, freeze money, or
-          register an FIR.
+          Official NCRP, bank and police filing is not claimed unless an
+          integration is marked live on the operator status page.
         </p>
       </main>
     </>

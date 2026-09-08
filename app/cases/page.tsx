@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentSession } from "@/lib/auth";
 import { listCitizenCases } from "@/lib/repository";
+import { PrototypeNotice } from "@/components/PrototypeNotice";
 
 const rupee = (value: unknown) =>
   new Intl.NumberFormat("en-IN", {
@@ -18,10 +19,7 @@ export default async function CitizenCasesPage() {
   const cases = await listCitizenCases(session.userId);
   return (
     <>
-      <div className="notice">
-        Independent hackathon prototype — external government, police and
-        banking actions are simulated.
-      </div>
+      <PrototypeNotice />
       <header className="dash-head">
         <div className="shell case-title">
           <div>

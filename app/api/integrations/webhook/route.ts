@@ -21,6 +21,8 @@ export async function POST(request: Request) {
     const event = parseSignedWebhook(
       body,
       request.headers.get("x-ncrp-signature"),
+      getWebhookSecret(),
+      request.headers.get("x-ncrp-timestamp"),
     );
     const result = await applyIntegrationWebhook(event);
     return NextResponse.json(result, {

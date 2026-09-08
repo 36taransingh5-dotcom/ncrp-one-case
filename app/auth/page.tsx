@@ -1,5 +1,6 @@
 import { AuthForm } from "@/components/AuthForm";
 import { DemoEntry } from "@/components/DemoEntry";
+import { PrototypeNotice } from "@/components/PrototypeNotice";
 import {
   isDemoAccessEnabled,
   isLocalBackend,
@@ -13,9 +14,7 @@ export default function AuthPage() {
   const showcaseDemo = isShowcaseDemoConfigured();
   return (
     <>
-      <div className="notice">
-        Independent hackathon prototype — not an official government service.
-      </div>
+      <PrototypeNotice />
       <main className="shell" style={{ maxWidth: 620, paddingTop: 48 }}>
         <a className="crumb" href="/">
           ← NCRP One Case

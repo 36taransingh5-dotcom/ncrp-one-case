@@ -35,6 +35,7 @@ export function externalReferenceFromResult(result: Record<string, unknown>) {
       result.externalReference ||
       result.reference ||
       result.messageReference ||
+      result.traceReference ||
       result.requestId ||
       "",
   );
@@ -83,18 +84,34 @@ export async function executeIntegrationAction(job: IntegrationJobInput) {
       freezeStatus = undefined;
     }
     result = { ...freeze, freezeStatus, securedAmount };
+  } else if (provider === "bank" && job.action === "trace_funds") {
+    result = await getBankAdapter().traceFunds(
+      caseId,
+      String(payload.transactionRef || payload.transactionId || caseId),
+      context,
+    );
   } else if (provider === "police" && job.action === "assign_cyber_cell") {
     result = await getPoliceAdapter().assignCyberCell(caseId, context);
   } else if (provider === "police" && job.action === "start_fir_review") {
     result = await getPoliceAdapter().startFirReview(caseId, context);
   } else if (provider === "police" && job.action === "register_fir") {
     result = await getPoliceAdapter().registerFir(caseId, context);
+  } else if (provider === "police" && job.action === "get_status") {
+    result = await getPoliceAdapter().getStatus(caseId, context);
   } else if (
     provider === "reporting" &&
     job.action === "create_external_complaint"
   ) {
     result = await getReportingAdapter().createExternalComplaint(
       caseId,
+      context,
+    );
+  } else if (
+    provider === "reporting" &&
+    job.action === "get_complaint_status"
+  ) {
+    result = await getReportingAdapter().getComplaintStatus(
+      String(payload.externalReference || payload.reference || caseId),
       context,
     );
   } else {

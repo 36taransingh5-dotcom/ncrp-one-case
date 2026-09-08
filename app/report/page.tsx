@@ -1,13 +1,11 @@
 import { ReportClient } from "@/components/ReportClient";
+import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { isLocalBackend } from "@/lib/supabase/config";
 
 export default function ReportPage() {
   return (
     <>
-      <div className="notice">
-        Independent hackathon prototype — this does not file a real complaint or
-        contact a real institution.
-      </div>
+      <PrototypeNotice extra="This form does not file an official complaint." />
       <main className="shell report-shell">
         <a className="crumb" href="/">
           ← NCRP One Case

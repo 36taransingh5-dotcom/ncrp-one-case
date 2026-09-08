@@ -4,7 +4,8 @@ import type {
   NotificationAdapter,
   PoliceAdapter,
 } from "./contracts";
-import { getProviderBinding } from "./config";
+import { createResendNotificationAdapter } from "./resend";
+import { getNotificationProvider, getProviderBinding } from "./config";
 import {
   createHttpBankAdapter,
   createHttpNotificationAdapter,
@@ -21,10 +22,19 @@ import {
 export {
   getIntegrationMode,
   getIntegrationSnapshot,
+  getNotificationProvider,
   getProviderBinding,
   integrationUsesHttp,
+  adapterStatusLabel,
+  notificationStatusLabel,
+  resendConfigured,
 } from "./config";
-export type { IntegrationMode, ProviderBinding } from "./config";
+export type {
+  IntegrationMode,
+  ProviderBinding,
+  NotificationProvider,
+  StatusLabel,
+} from "./config";
 export {
   IntegrationError,
   PermanentIntegrationError,
@@ -52,7 +62,8 @@ export function getReportingAdapter(): FraudReportingAdapter {
 }
 
 export function getNotificationAdapter(): NotificationAdapter {
-  return getProviderBinding("notification") === "http"
-    ? createHttpNotificationAdapter()
-    : simulatedNotificationAdapter;
+  const provider = getNotificationProvider();
+  if (provider === "resend") return createResendNotificationAdapter();
+  if (provider === "http") return createHttpNotificationAdapter();
+  return simulatedNotificationAdapter;
 }

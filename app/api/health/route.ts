@@ -11,7 +11,10 @@ export async function GET() {
     return NextResponse.json({
       status: "ok",
       backend: "local-demo",
-      integrations,
+      integrations: {
+        ...integrations,
+        email: integrations.notification,
+      },
     });
   try {
     const { error } = await createSupabaseAdminClient()
@@ -22,11 +25,21 @@ export async function GET() {
     return NextResponse.json({
       status: "ok",
       backend: "supabase",
-      integrations,
+      integrations: {
+        ...integrations,
+        email: integrations.notification,
+      },
     });
   } catch {
     return NextResponse.json(
-      { status: "unavailable", backend: "supabase", integrations },
+      {
+        status: "unavailable",
+        backend: "supabase",
+        integrations: {
+          ...integrations,
+          email: integrations.notification,
+        },
+      },
       { status: 503 },
     );
   }

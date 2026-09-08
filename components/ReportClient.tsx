@@ -308,7 +308,7 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
       }}
     >
       <div className="report-intro">
-        <span className="eyebrow">Tell us · Review · Create demo case</span>
+        <span className="eyebrow">Tell us · Review · Create case</span>
         <h2>You don’t need to know every detail.</h2>
         <p>
           Start with what you remember. Leave optional details for later. You’ll

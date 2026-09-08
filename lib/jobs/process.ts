@@ -5,6 +5,9 @@ import {
   getNotificationAdapter,
   isPermanentIntegrationError,
 } from "@/lib/adapters";
+import { resendRequestedWithoutConfig } from "@/lib/adapters/config";
+import { emailTemplateFor } from "@/lib/adapters/email-templates";
+import { recordEmailDelivery, resolveCitizenEmail } from "./email";
 import { logEvent, logFailure } from "@/lib/observability";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -42,15 +45,28 @@ export async function processIntegrationJobs(
     const job = value as Job;
     try {
       const executed = await executeIntegrationAction(job);
+      const respondedAt = new Date().toISOString();
+      const requestId = String(
+        executed.result.requestId || executed.externalReference,
+      );
       const { error: updateError } = await supabase
         .from("integration_jobs")
         .update({
           status: "succeeded",
           external_reference: executed.externalReference,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          completed_at: respondedAt,
+          updated_at: respondedAt,
           locked_at: null,
           locked_by: null,
+          payload_json: {
+            ...job.payload_json,
+            provider: job.provider,
+            integrationMode: executed.binding,
+            requestId,
+            requestedAt: job.payload_json.requestedAt || respondedAt,
+            respondedAt,
+            status: "succeeded",
+          },
         })
         .eq("id", job.id);
       if (updateError) throw new Error(updateError.message);
@@ -142,14 +158,77 @@ export async function processOutboxEvents(workerName: string, batchSize = 25) {
         .single();
       if (sourceError || !source)
         throw new Error("Persisted source event is unavailable.");
+      const template = emailTemplateFor(event.event_type);
+      if (!template) {
+        const { error: skipError } = await supabase
+          .from("outbox_events")
+          .update({
+            status: "published",
+            published_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_error: null,
+            payload_json: {
+              ...event.payload_json,
+              email: "skipped",
+            },
+          })
+          .eq("id", event.id);
+        if (skipError) throw new Error(skipError.message);
+        results.push({ id: event.id, status: "published" });
+        continue;
+      }
+      const citizen = await resolveCitizenEmail(event.aggregate_id);
+      if (resendRequestedWithoutConfig() || !citizen?.email) {
+        await recordEmailDelivery({
+          outboxEventId: event.id,
+          caseId: event.aggregate_id,
+          recipient: citizen?.email || "none",
+          template: event.event_type,
+          status: citizen?.email ? "not_configured" : "skipped",
+          attemptCount: event.attempt_count,
+          lastError: citizen?.email
+            ? "Resend is not configured"
+            : "Citizen email is unavailable",
+        });
+        const { error: skipError } = await supabase
+          .from("outbox_events")
+          .update({
+            status: "published",
+            published_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_error: null,
+            payload_json: {
+              ...event.payload_json,
+              email: citizen?.email ? "not_configured" : "skipped",
+            },
+          })
+          .eq("id", event.id);
+        if (skipError) throw new Error(skipError.message);
+        results.push({ id: event.id, status: "published" });
+        continue;
+      }
+      const publicCaseId = citizen.publicCaseId;
       const notification = await getNotificationAdapter().send(
         {
-          recipient: "case-citizen",
+          recipient: citizen.userId,
+          to: citizen.email,
           template: event.event_type,
           caseReference: event.aggregate_id,
+          publicCaseId,
+          subject: template.subject(publicCaseId),
+          text: template.text(publicCaseId),
         },
         { idempotencyKey: `outbox:${event.id}`, timeoutMs: 8_000 },
       );
+      await recordEmailDelivery({
+        outboxEventId: event.id,
+        caseId: event.aggregate_id,
+        recipient: citizen.email,
+        template: event.event_type,
+        status: "sent",
+        attemptCount: event.attempt_count,
+        messageId: notification.messageReference,
+      });
       const { error: updateError } = await supabase
         .from("outbox_events")
         .update({
@@ -193,6 +272,18 @@ export async function processOutboxEvents(workerName: string, batchSize = 25) {
         caseId: event.aggregate_id,
         jobId: event.id,
         operation: event.event_type,
+      });
+      await recordEmailDelivery({
+        outboxEventId: event.id,
+        caseId: event.aggregate_id,
+        recipient: "unknown",
+        template: event.event_type,
+        status: "failed",
+        attemptCount: event.attempt_count,
+        lastError:
+          outboxError instanceof Error
+            ? outboxError.message.slice(0, 500)
+            : "Unknown error",
       });
       results.push({ id: event.id, status: "failed" });
     }

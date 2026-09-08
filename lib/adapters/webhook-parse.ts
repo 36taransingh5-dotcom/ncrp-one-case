@@ -21,14 +21,29 @@ export const webhookEventSchema = z.object({
   providerReference: z.string().min(3).max(120).optional(),
   status: z.string().min(2).max(40).optional(),
   securedAmount: z.number().int().nonnegative().optional(),
+  occurredAt: z.string().min(10).max(40).optional(),
+  timestamp: z.string().min(10).max(40).optional(),
 });
 
 export type WebhookEvent = z.infer<typeof webhookEventSchema>;
+
+const MAX_WEBHOOK_SKEW_MS = 10 * 60 * 1000;
+
+export function webhookTimestampIsFresh(
+  value: string | null | undefined,
+  now = Date.now(),
+) {
+  if (!value) return true;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return false;
+  return Math.abs(now - parsed) <= MAX_WEBHOOK_SKEW_MS;
+}
 
 export function parseSignedWebhook(
   body: string,
   signature: string | null,
   secret = getWebhookSecret(),
+  timestampHeader?: string | null,
 ) {
   if (!secret)
     throw new PermanentIntegrationError("Webhook receiver is not configured");
@@ -42,5 +57,11 @@ export function parseSignedWebhook(
   } catch {
     throw new PermanentIntegrationError("Webhook payload was not valid JSON");
   }
-  return webhookEventSchema.parse(parsed);
+  const event = webhookEventSchema.parse(parsed);
+  const timestamp = timestampHeader || event.occurredAt || event.timestamp;
+  if (timestamp && !webhookTimestampIsFresh(timestamp))
+    throw new PermanentIntegrationError(
+      "Webhook timestamp is outside the allowed window",
+    );
+  return event;
 }

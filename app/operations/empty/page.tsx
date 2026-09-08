@@ -1,10 +1,9 @@
+import { PrototypeNotice } from "@/components/PrototypeNotice";
+
 export default function EmptyOperationsQueue() {
   return (
     <>
-      <div className="notice">
-        Operations · Independent hackathon prototype. External integrations are
-        simulated.
-      </div>
+      <PrototypeNotice />
       <main className="shell" style={{ maxWidth: 720, paddingTop: 48 }}>
         <section className="card section">
           <div className="eyebrow">My Queue</div>
