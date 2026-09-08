@@ -1,6 +1,7 @@
 import { AuthForm } from "@/components/AuthForm";
 import { DemoEntry } from "@/components/DemoEntry";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
+import { SiteNav } from "@/components/SiteNav";
 import {
   isDemoAccessEnabled,
   isLocalBackend,
@@ -15,11 +16,9 @@ export default function AuthPage() {
   return (
     <>
       <PrototypeNotice />
-      <main className="shell" style={{ maxWidth: 620, paddingTop: 48 }}>
-        <a className="crumb" href="/">
-          ← NCRP One Case
-        </a>
-        <section className="card section" style={{ marginTop: 18 }}>
+      <main className="shell" style={{ maxWidth: 620, paddingTop: 8 }}>
+        <SiteNav links={[{ href: "/", label: "Home" }]} />
+        <section className="card section" style={{ marginTop: 28 }}>
           <div className="eyebrow">Secure citizen access</div>
           <h1>Create or access your account</h1>
           <p>

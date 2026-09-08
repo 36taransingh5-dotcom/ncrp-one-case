@@ -1,19 +1,20 @@
 :root {
-  /* --font-display / --font-body / --font-mono are set on <html> by
-     next/font (app/layout.tsx) — each already resolves to its family plus
-     a metric-matched fallback, so they're used directly, not redeclared. */
+  /* --font-sans / --font-mono are set on <html> by next/font. Display and
+     body share Manrope so headings and copy feel like one geometric family. */
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
 
-  --ink: #0b1220;
-  --muted: #5b6478;
-  --line: #e2e5ee;
-  --paper: #f6f7fb;
+  --ink: #1a1c2e;
+  --muted: #5a5a66;
+  --line: #e7e1d8;
+  --paper: #faf9f6;
   --card: #fff;
 
-  --blue: #3654e0;
-  --blue-strong: #2843c9;
-  --blue-deep: #1c2b6b;
-  --navy: #0a0f1f;
-  --blue-soft: #eef1fe;
+  --blue: #0033ff;
+  --blue-strong: #0029d6;
+  --blue-deep: #001a99;
+  --navy: #1a1c2e;
+  --blue-soft: #eef0ff;
   --yellow: #f0dd63;
 
   --green: #157a4c;
@@ -23,28 +24,32 @@
   --red: #b23a2e;
   --red-soft: #fbeae8;
 
-  --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 22px;
+  --radius-sm: 10px;
+  --radius: 18px;
+  --radius-lg: 28px;
   --radius-pill: 999px;
-  --shadow-card: 0 1px 2px #0b122007, 0 12px 28px -14px #0b122022;
-  --shadow-lift: 0 20px 44px -18px #1c2b6b3d;
+  --shadow-card: 0 1px 2px #1a1c2e08, 0 18px 40px -22px #1a1c2e1a;
+  --shadow-lift: 0 12px 32px -16px #0033ff40;
+  --shadow-pill: 0 10px 36px -18px #1a1c2e24;
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  background: var(--paper);
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -18%, #f3e6d4 0%, transparent 58%),
+    radial-gradient(ellipse 45% 35% at 92% 12%, #efe4d4 0%, transparent 52%),
+    var(--paper);
   color: var(--ink);
-  font: 15px/1.55 var(--font-body);
+  font: 16px/1.65 var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
 }
 a {
   color: inherit;
@@ -70,11 +75,11 @@ button {
   padding: 0 24px;
 }
 .notice {
-  background: var(--navy);
-  color: #cfd8f5;
-  font: 500 12px/1.5 var(--font-mono);
-  letter-spacing: 0.01em;
-  padding: 9px 24px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 13px/1.5 var(--font-body);
+  letter-spacing: 0;
+  padding: 16px 24px 0;
   text-align: center;
 }
 .nav {
@@ -83,37 +88,44 @@ button {
   align-items: center;
   justify-content: space-between;
 }
+.nav-pill {
+  height: auto;
+  min-height: 58px;
+  margin: 12px auto 0;
+  padding: 8px 10px 8px 18px;
+  background: #fff;
+  border: 1px solid #ffffff;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pill);
+}
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.03em;
-  font-size: 21px;
-  color: var(--ink);
+  font-size: 17px;
+  color: var(--blue);
 }
-.brand::before {
-  content: "";
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+.brand-mark {
+  display: block;
   flex: 0 0 auto;
-  background: linear-gradient(135deg, var(--blue), var(--blue-deep));
-  box-shadow: inset 0 0 0 1px #ffffff2e;
+  color: var(--blue);
 }
 .brand span {
   color: var(--blue);
+  font-weight: 500;
 }
 .navlinks {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
 }
 .navlinks a:not(.btn) {
-  padding: 8px 4px;
+  padding: 8px 12px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 14px;
 }
 .navlinks a:not(.btn):hover {
@@ -141,7 +153,6 @@ button {
   background: var(--blue-strong);
   border-color: var(--blue-strong);
   box-shadow: var(--shadow-lift);
-  transform: translateY(-1px);
 }
 .btn.secondary {
   background: white;
@@ -152,6 +163,20 @@ button {
   background: white;
   border-color: var(--blue);
   color: var(--blue);
+  box-shadow: none;
+  transform: none;
+}
+.nav-pill .btn {
+  padding: 8px 14px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.nav-pill .btn:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink);
   box-shadow: none;
   transform: none;
 }
@@ -172,30 +197,50 @@ button {
   gap: 56px;
   align-items: center;
 }
+.hero-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 0 36px;
+}
+.hero-mark {
+  color: var(--blue);
+  margin-bottom: 8px;
+}
 .eyebrow {
   display: inline-block;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  color: var(--blue);
-  font-size: 11.5px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .hero h1 {
   font-size: clamp(38px, 5.2vw, 62px);
   line-height: 1.04;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.045em;
+  font-weight: 800;
   margin: 16px 0 20px;
   max-width: 680px;
+}
+.hero-centered h1 {
+  margin: 18px 0 16px;
+  max-width: 720px;
 }
 .hero h1 .accent {
   color: var(--blue);
 }
 .hero p {
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--muted);
   max-width: 560px;
+}
+.hero-centered p {
+  margin: 0;
+  max-width: 520px;
 }
 .card {
   background: var(--card);
@@ -246,8 +291,9 @@ button {
   padding: 28px 0;
 }
 .dash-head {
-  background: white;
+  background: color-mix(in srgb, white 86%, transparent);
   border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(16px);
 }
 .dash-head .shell {
   padding-top: 20px;
@@ -301,7 +347,7 @@ button {
   gap: 12px;
 }
 .money .metric-box {
-  background: #fbfbfe;
+  background: #fcfbf8;
 }
 .money .metric {
   font-size: 25px;
@@ -348,7 +394,7 @@ button {
   border-radius: 100%;
   background: var(--blue);
   border: 2px solid white;
-  box-shadow: 0 0 0 1px #c3caea;
+  box-shadow: 0 0 0 1px #c9c6ff;
 }
 .event time {
   font-family: var(--font-mono);
@@ -562,8 +608,10 @@ button {
   .metric-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .navlinks a {
-    display: none;
+  .nav-pill {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .aside {
     display: grid;

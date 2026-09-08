@@ -1,5 +1,6 @@
 import { ReportClient } from "@/components/ReportClient";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
+import { SiteNav } from "@/components/SiteNav";
 import { isLocalBackend } from "@/lib/supabase/config";
 
 export default function ReportPage() {
@@ -7,9 +8,12 @@ export default function ReportPage() {
     <>
       <PrototypeNotice extra="This form does not file an official complaint." />
       <main className="shell report-shell">
-        <a className="crumb" href="/">
-          ← NCRP One Case
-        </a>
+        <SiteNav
+          links={[
+            { href: "/", label: "Home" },
+            { href: "/cases", label: "Your cases" },
+          ]}
+        />
         <div className="card section report-card">
           <span className="eyebrow">Report financial cyber fraud</span>
           <h1>Tell us what happened.</h1>
