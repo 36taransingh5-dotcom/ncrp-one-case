@@ -938,6 +938,23 @@
   color: var(--muted);
   font-size: 12px;
 }
+.digilocker-coming-soon {
+  display: grid;
+  gap: 10px;
+}
+.hero-actions .digilocker-coming-soon {
+  display: inline-grid;
+  align-self: start;
+}
+.digilocker-coming-soon-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 13px;
+  line-height: 1.5;
+}
 .auth-divider::before,
 .auth-divider::after {
   height: 1px;

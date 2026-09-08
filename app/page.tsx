@@ -1,4 +1,5 @@
 import { DemoEntry } from "@/components/DemoEntry";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { currentSession } from "@/lib/auth";
 import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
@@ -70,6 +71,7 @@ export default async function Home() {
               >
                 Start a new report
               </a>
+              {!session ? <DigiLockerComingSoonButton /> : null}
               {demoAccess ? (
                 <DemoEntry role="citizen" label="Enter citizen demo" />
               ) : null}
