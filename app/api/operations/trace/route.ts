@@ -14,7 +14,14 @@ export async function POST(request: Request) {
         movementId: z.string().uuid(),
         amount: z.number().int().positive().max(10_000_000),
         status: z.enum(["secured", "tracing", "unrecovered"]),
-        institutionId: z.string().uuid().optional(),
+        // Not z.string().uuid(): the seeded institution ids are fixed,
+        // human-readable placeholders (e.g. "10000000-...-0002") that don't
+        // set RFC 4122 version/variant bits, so Zod's strict UUID format
+        // rejects them even though Postgres's uuid column accepts them fine.
+        institutionId: z
+          .string()
+          .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/)
+          .optional(),
         expectedVersion: z.number().int().nonnegative().default(0),
         idempotencyKey: z.string().uuid().optional(),
       })
