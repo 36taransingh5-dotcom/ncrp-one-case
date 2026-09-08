@@ -31,7 +31,16 @@ import {
   emailContainsSensitiveFinancialData,
   emailTemplateFor,
 } from "../lib/adapters/email-templates";
-import { getApiSetuMode, getDigiLockerMode } from "../lib/adapters/identity";
+import {
+  buildDigiLockerAuthorizationUrl,
+  decryptSecret,
+  encryptSecret,
+  getApiSetuMode,
+  getDigiLockerMode,
+  resolveIdentityMode,
+  signOauthState,
+  verifyOauthState,
+} from "../lib/adapters/identity";
 
 async function withServer(
   handler: (
@@ -286,6 +295,36 @@ test("email templates omit amounts and account data", () => {
 test("DigiLocker and API Setu stay disabled without credentials", () => {
   assert.equal(getDigiLockerMode(), "disabled");
   assert.equal(getApiSetuMode(), "disabled");
+  assert.equal(resolveIdentityMode("", "", ""), "disabled");
+  assert.equal(resolveIdentityMode("disabled", "id", "secret"), "disabled");
+  assert.equal(resolveIdentityMode("", "id", "secret"), "sandbox");
+  assert.equal(resolveIdentityMode("live", "id", "secret"), "live");
+});
+
+test("DigiLocker OAuth uses official meripehchaan endpoints and signed state", () => {
+  const state = signOauthState({
+    userId: "user-1",
+    caseId: "NCRP-26-111111",
+    nonce: "nonce-1",
+  });
+  const parsed = verifyOauthState(state);
+  assert.equal(parsed?.userId, "user-1");
+  assert.equal(parsed?.caseId, "NCRP-26-111111");
+  assert.equal(verifyOauthState("tampered.payload"), null);
+  const url = buildDigiLockerAuthorizationUrl({
+    clientId: "partner-client",
+    redirectUri:
+      "https://ncrp-one-case.vercel.app/api/integrations/digilocker/callback",
+    state,
+    codeChallenge: "challenge",
+  });
+  assert.match(
+    url,
+    /digilocker\.meripehchaan\.gov\.in\/public\/oauth2\/1\/authorize/,
+  );
+  assert.match(url, /client_id=partner-client/);
+  assert.match(url, /code_challenge_method=S256/);
+  assert.equal(decryptSecret(encryptSecret("access-token")), "access-token");
 });
 
 test("Resend binds from API key alone and defaults the test sender", () => {

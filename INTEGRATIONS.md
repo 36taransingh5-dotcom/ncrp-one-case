@@ -4,15 +4,15 @@ No official NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker
 
 `lib/adapters/contracts.ts` owns the replaceable bank, police, reporting and notification interfaces. `lib/adapters/simulated.ts` is the in-process development implementation. `lib/adapters/http.ts` is the authenticated HTTP implementation. `lib/adapters/index.ts` binds each provider at runtime. Application state never depends on an adapter's in-memory state. Commands persist a job first, and `lib/jobs/process.ts` later invokes the adapter and records its result.
 
-| Boundary              | Current adapter                     | Durable behavior                                      | Production replacement               |
-| --------------------- | ----------------------------------- | ----------------------------------------------------- | ------------------------------------ |
-| NCRP / 1930 / CFCFRMS | Simulated or HTTP `/v1/complaints`  | Case-created job, external reference, retries         | Approved authenticated complaint API |
-| Bank / UPI            | Simulated or HTTP freeze/lookup     | Freeze job, idempotency key, status poll, webhook ack | Approved participant-bank gateway    |
-| Police / FIR          | Simulated or HTTP assignment/FIR    | Assignment/review/registration jobs                   | State police integration             |
-| Evidence malware scan | Interface-ready validation hook     | MIME/signature/hash retained                          | Approved asynchronous scanner        |
-| Notifications         | Resend, HTTP sandbox, or simulated  | Outbox send, retries, delivery receipts               | Transactional email (Resend)         |
-| DigiLocker            | Disabled until requester onboarding | Pluggable adapter, no fake locker                     | Approved requester API               |
-| API Setu              | Disabled until client credentials   | Status page + env placeholders                        | Approved government API              |
+| Boundary              | Current adapter                           | Durable behavior                                      | Production replacement               |
+| --------------------- | ----------------------------------------- | ----------------------------------------------------- | ------------------------------------ |
+| NCRP / 1930 / CFCFRMS | Simulated or HTTP `/v1/complaints`        | Case-created job, external reference, retries         | Approved authenticated complaint API |
+| Bank / UPI            | Simulated or HTTP freeze/lookup           | Freeze job, idempotency key, status poll, webhook ack | Approved participant-bank gateway    |
+| Police / FIR          | Simulated or HTTP assignment/FIR          | Assignment/review/registration jobs                   | State police integration             |
+| Evidence malware scan | Interface-ready validation hook           | MIME/signature/hash retained                          | Approved asynchronous scanner        |
+| Notifications         | Resend, HTTP sandbox, or simulated        | Outbox send, retries, delivery receipts               | Transactional email (Resend)         |
+| DigiLocker            | Official OAuth when requester creds exist | Citizen authorize + choose issued document            | Approved requester API               |
+| API Setu              | Credentials bind DigiLocker requester     | Status page; no fake PAN/Aadhaar calls                | Approved government API              |
 
 Set `NCRP_INTEGRATION_MODE=http` plus per-provider base URL and API key (or `NCRP_SANDBOX_SECRET` with `NCRP_APP_BASE_URL`) to send real HTTP. Hosted `NCRP_BACKEND=supabase` deployments also enable the HTTP sandbox automatically when `NCRP_WORKER_SECRET` is set, unless `NCRP_INTEGRATION_MODE=simulated`. Missing provider credentials keep that provider on the simulated adapter. Local tests and the SQLite demo stay `simulated`.
 
@@ -30,7 +30,9 @@ Set `RESEND_API_KEY` (Vercel Resend Marketplace injects this). To email the citi
 
 # DigiLocker and API Setu
 
-No requester or API Setu credentials are configured in this repository. The adapters stay disabled, the citizen DigiLocker control is unavailable, and `/integrations` shows NOT CONNECTED with “Requires DigiLocker requester onboarding”. Do not invent a sandbox locker or government API.
+DigiLocker uses the official requester OAuth on `digilocker.meripehchaan.gov.in`. Register `https://<app>/api/integrations/digilocker/callback` in the partner portal. Set `DIGILOCKER_CLIENT_ID` and `DIGILOCKER_CLIENT_SECRET`, or API Setu client credentials which are used as a fallback. Mode is `sandbox` when credentials exist unless `DIGILOCKER_MODE=live` or `disabled`. Citizens authorize DigiLocker, then choose one issued document to attach as case evidence. This app does not invent locker contents, fetch e-Aadhaar XML, or store DigiLocker profile fields.
+
+API Setu status is SANDBOX/LIVE only when `API_SETU_CLIENT_ID` and `API_SETU_CLIENT_SECRET` are set. There is no fake PAN/Aadhaar verification API. Bank, police and reporting remain HTTP sandbox, not live institutional systems.
 
 # OpenAI case intelligence
 

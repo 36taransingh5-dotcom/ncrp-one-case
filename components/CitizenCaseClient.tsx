@@ -172,11 +172,13 @@ export function CitizenCaseClient({
   caseId,
   realtimeMode = "sse",
   digiLockerEnabled = false,
+  digiLockerStatus = "",
 }: {
   initial: CaseDetail;
   caseId: string;
   realtimeMode?: "sse" | "supabase";
   digiLockerEnabled?: boolean;
+  digiLockerStatus?: string;
 }) {
   const [detail, setDetail] = useState(initial);
   const detailRef = useRef(initial);
@@ -859,7 +861,11 @@ export function CitizenCaseClient({
             </div>
           )}
 
-          <DigiLockerConnect enabled={digiLockerEnabled} />
+          <DigiLockerConnect
+            enabled={digiLockerEnabled}
+            caseId={caseId}
+            status={digiLockerStatus}
+          />
 
           <form className="form evidence-form" onSubmit={onUpload}>
             <label>

@@ -8,13 +8,16 @@ import { getDigiLockerMode } from "@/lib/adapters/identity";
 export const dynamic = "force-dynamic";
 export default async function CasePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ caseId: string }>;
+  searchParams: Promise<{ digilocker?: string }>;
 }) {
   if (isLocalBackend()) ensureDemoData();
   const session = await currentSession();
   if (!session) redirect("/auth");
   const caseId = (await params).caseId;
+  const query = await searchParams;
   const detail = await getCaseDetail(caseId);
   if (!detail) notFound();
   if (session.role === "citizen" && detail.citizen.user_id !== session.userId)
@@ -25,6 +28,7 @@ export default async function CasePage({
       caseId={caseId}
       realtimeMode={isLocalBackend() ? "sse" : "supabase"}
       digiLockerEnabled={getDigiLockerMode() !== "disabled"}
+      digiLockerStatus={query.digilocker || ""}
     />
   );
 }

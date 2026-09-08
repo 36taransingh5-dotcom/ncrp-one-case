@@ -119,7 +119,9 @@ export function getIntegrationStatusRows(): IntegrationStatusRow[] {
       detail:
         getDigiLockerMode() === "disabled"
           ? "Requires DigiLocker requester onboarding. Credentials are not configured."
-          : "Requester credentials are present.",
+          : getDigiLockerMode() === "live"
+            ? "Official DigiLocker OAuth against meripehchaan.gov.in. Citizens authorize, then choose a document to attach."
+            : "Official DigiLocker OAuth with partner/sandbox credentials. Not a fake locker.",
     },
     {
       name: "API Setu",
@@ -127,7 +129,7 @@ export function getIntegrationStatusRows(): IntegrationStatusRow[] {
       detail:
         getApiSetuMode() === "disabled"
           ? "No usable API Setu client credentials are configured."
-          : "Client credentials are present.",
+          : "API Setu client credentials are present and can supply DigiLocker requester OAuth if DIGILOCKER_* is unset.",
     },
   ];
 }

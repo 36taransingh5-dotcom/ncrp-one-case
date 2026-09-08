@@ -2,13 +2,17 @@ import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { isLocalBackend } from "@/lib/supabase/config";
 import { getIntegrationSnapshot } from "@/lib/adapters";
+import { getIdentitySnapshot } from "@/lib/adapters/identity";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   await connection();
-  const integrations = getIntegrationSnapshot();
+  const integrations = {
+    ...getIntegrationSnapshot(),
+    identity: getIdentitySnapshot(),
+  };
   if (isLocalBackend())
     return NextResponse.json({
       status: "ok",
