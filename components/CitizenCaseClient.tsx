@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
 import { MoneyTrail } from "@/components/MoneyTrail";
+import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { DigiLockerConnect } from "@/components/DigiLockerConnect";
 import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -579,6 +580,9 @@ export function CitizenCaseClient({
             >
               {realtimeMode === "supabase" ? "Sign in" : "Return to demo entry"}
             </a>
+            {realtimeMode === "supabase" ? (
+              <DigiLockerComingSoonButton />
+            ) : null}
           </section>
         )}
 
