@@ -61,7 +61,7 @@ export function seedDemo(reset = false) {
   if (reset) {
     clearDemoUploads();
     db.exec(
-      "DELETE FROM audit_logs; DELETE FROM notifications; DELETE FROM case_events; DELETE FROM fund_movements; DELETE FROM transactions; DELETE FROM evidence_requests; DELETE FROM evidence; DELETE FROM agency_assignments; DELETE FROM fir_records; DELETE FROM incidents; DELETE FROM cases; DELETE FROM citizens; DELETE FROM users; DELETE FROM institutions;",
+      "DELETE FROM audit_logs; DELETE FROM notifications; DELETE FROM case_events; DELETE FROM fund_movements; DELETE FROM transactions; DELETE FROM evidence_requests; DELETE FROM evidence; DELETE FROM agency_assignments; DELETE FROM fir_records; DELETE FROM incidents; DELETE FROM integration_jobs; DELETE FROM cases; DELETE FROM citizens; DELETE FROM users; DELETE FROM institutions; DELETE FROM request_limits;",
     );
   }
   const exists = db.prepare("SELECT id FROM cases LIMIT 1").get();
