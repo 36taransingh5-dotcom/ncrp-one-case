@@ -21,6 +21,15 @@ test("AI auth and unavailable-provider behaviour leave manual reporting availabl
   });
   expect(wrongRole.status()).toBe(401);
   await page.goto("/report");
+  const institutionInput = page.getByLabel(
+    "Institution or masked account details (optional)",
+  );
+  const aiSection = page.getByRole("region", { name: "AI report analysis" });
+  const institutionBox = await institutionInput.boundingBox();
+  const aiBox = await aiSection.boundingBox();
+  expect(institutionBox).not.toBeNull();
+  expect(aiBox).not.toBeNull();
+  expect(aiBox!.y).toBeGreaterThan(institutionBox!.y + institutionBox!.height);
   await page
     .getByLabel("What happened?")
     .fill(

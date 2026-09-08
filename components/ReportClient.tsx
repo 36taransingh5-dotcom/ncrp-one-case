@@ -188,25 +188,6 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           rows={7}
         />
       </label>
-      <AiAnalysis
-        description={description}
-        onAccept={(result) => {
-          setFraudType(result.fraudType);
-          if (result.reportedAmount !== null)
-            setAmount(String(result.reportedAmount));
-          if (result.paymentChannel) setPaymentChannel(result.paymentChannel);
-          if (result.transactionReferences.length)
-            setTransactionReference(result.transactionReferences[0]);
-          // A source/impersonated institution must never become a beneficiary.
-          if (result.beneficiaryInstitution)
-            setInstitutionDetails(result.beneficiaryInstitution);
-          if (result.incidentDate && result.incidentTime)
-            setIncidentAt(`${result.incidentDate}T${result.incidentTime}`);
-          setStatus(
-            "Suggestions copied. Review and correct the fields below before continuing. Dates and institutions that are unknown must be supplied by you.",
-          );
-        }}
-      />
       <label>
         How much money did you lose? (₹)
         <input
@@ -271,6 +252,25 @@ export function ReportClient({ localDemo = false }: { localDemo?: boolean }) {
           maxLength={160}
         />
       </label>
+      <AiAnalysis
+        description={description}
+        onAccept={(result) => {
+          setFraudType(result.fraudType);
+          if (result.reportedAmount !== null)
+            setAmount(String(result.reportedAmount));
+          if (result.paymentChannel) setPaymentChannel(result.paymentChannel);
+          if (result.transactionReferences.length)
+            setTransactionReference(result.transactionReferences[0]);
+          // A source/impersonated institution must never become a beneficiary.
+          if (result.beneficiaryInstitution)
+            setInstitutionDetails(result.beneficiaryInstitution);
+          if (result.incidentDate && result.incidentTime)
+            setIncidentAt(`${result.incidentDate}T${result.incidentTime}`);
+          setStatus(
+            "Suggestions copied. Review and correct the fields above before continuing. Dates and institutions that are unknown must be supplied by you.",
+          );
+        }}
+      />
       {status && (
         <div className="error" role="status">
           {status}
