@@ -89,6 +89,30 @@ test("simulated freeze and reporting jobs return adapter references", async () =
   assert.match(report.externalReference, /NCRP-SIM-/);
 });
 
+test("demo freeze retry fails once on attempt 1 then succeeds on the same job", async () => {
+  const job = {
+    case_id: "case-retry",
+    provider: "bank",
+    action: "request_freeze",
+    payload_json: {
+      demonstrateRetry: true,
+      accountRef: "HDFC ••9281",
+      amount: 2100,
+    },
+    idempotency_key: "bank:freeze:case-retry",
+  };
+  await assert.rejects(
+    () => executeIntegrationAction({ ...job, attempt_count: 1 }),
+    (error: unknown) =>
+      error instanceof RetryableIntegrationError && error.status === 503,
+  );
+  const recovered = await executeIntegrationAction({
+    ...job,
+    attempt_count: 2,
+  });
+  assert.match(recovered.externalReference, /HDFC-SIM-/);
+});
+
 test("HTTP client classifies 503 as retryable and 422 as permanent", async () => {
   await withServer(
     (_req, res) => {
@@ -185,6 +209,62 @@ test("HTTP bank adapter sends idempotency keys and polls freeze status", async (
       assert.equal(status.securedAmount, 6700);
       assert.equal(seen[0]?.idempotency, "freeze-key");
       assert.ok(seen.some((item) => item.method === "GET"));
+    },
+  );
+});
+
+test("HTTP freeze demo mode sends controlled retry headers and recovers on attempt 2", async () => {
+  const seen: { demo?: string; attempt?: string }[] = [];
+  await withServer(
+    (req, res) => {
+      seen.push({
+        demo: String(req.headers["x-ncrp-sandbox-demo"] || ""),
+        attempt: String(req.headers["x-ncrp-job-attempt"] || ""),
+      });
+      if (req.headers["x-ncrp-job-attempt"] === "1") {
+        res.statusCode = 503;
+        res.end("unavailable");
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          requestId: "FREEZE-RETRY-2",
+          accepted: true,
+          providerReference: "HDFC-RETRY-2",
+        }),
+      );
+    },
+    async (baseUrl) => {
+      const bank = createHttpBankAdapter({
+        baseUrl,
+        apiKey: "test-bank-key",
+      });
+      await assert.rejects(
+        () =>
+          bank.requestFreeze("case-1", "HDFC ••9281", 2100, {
+            idempotencyKey: "bank:freeze:case-1",
+            timeoutMs: 2_000,
+            attemptCount: 1,
+            demoFreezeRetry: true,
+          }),
+        RetryableIntegrationError,
+      );
+      const recovered = await bank.requestFreeze(
+        "case-1",
+        "HDFC ••9281",
+        2100,
+        {
+          idempotencyKey: "bank:freeze:case-1",
+          timeoutMs: 2_000,
+          attemptCount: 2,
+          demoFreezeRetry: true,
+        },
+      );
+      assert.equal(recovered.providerReference, "HDFC-RETRY-2");
+      assert.equal(seen[0]?.demo, "freeze-retry-once");
+      assert.equal(seen[0]?.attempt, "1");
+      assert.equal(seen[1]?.attempt, "2");
     },
   );
 });

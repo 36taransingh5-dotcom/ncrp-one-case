@@ -1,4 +1,5 @@
 import type { CaseDetail } from "@/lib/types";
+import { BANK_RETRY_QUEUED } from "@/lib/jobs/status";
 
 const rupee = (value: number) =>
   new Intl.NumberFormat("en-IN", {
@@ -73,6 +74,18 @@ function slaState(detail: CaseDetail, nowMs: number) {
   return formatRemaining(remaining);
 }
 
+function freezeRetryQueued(detail: CaseDetail) {
+  return (detail.integrationJobs || []).some((job) => {
+    const action = String(job.action || "");
+    const status = String(job.status || "");
+    return (
+      /freeze/.test(action) &&
+      (status === "retrying" || status === "pending") &&
+      Boolean(job.last_error)
+    );
+  });
+}
+
 function nextActionAndBlocker(detail: CaseDetail) {
   const status = String(detail.case.case_status || "");
   const sla = String(detail.sla.status || "not_applicable");
@@ -89,6 +102,11 @@ function nextActionAndBlocker(detail: CaseDetail) {
     return {
       nextAction: "Citizen must attach the requested document",
       blocker: "Evidence requested from citizen",
+    };
+  if (freezeRetryQueued(detail))
+    return {
+      nextAction: "Retry the freeze request",
+      blocker: BANK_RETRY_QUEUED,
     };
   if (freezeWaiting)
     return {

@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
 import type { Intelligence } from "@/lib/ai/schema";
 import { buildOperatorCaseSummary } from "@/lib/domain/operator-summary";
+import {
+  BANK_ACKNOWLEDGED,
+  BANK_RETRY_QUEUED,
+  freezeJobStatusLabel,
+} from "@/lib/jobs/status";
 import { AiAnalysis } from "./AiAnalysis";
 import { PrototypeNotice } from "./PrototypeNotice";
 
@@ -11,6 +16,7 @@ type Row = Record<string, unknown>;
 type SimpleAction =
   | "IDENTIFY_BENEFICIARY_BANK"
   | "SEND_FREEZE_REQUEST"
+  | "RETRY_INTEGRATION_JOBS"
   | "MARK_FUNDS_MOVED"
   | "MARK_FUNDS_WITHDRAWN"
   | "ASSIGN_CYBER_CELL"
@@ -24,6 +30,7 @@ type SimpleAction =
 const actionLabels: Record<SimpleAction | "REQUEST_EVIDENCE", string> = {
   IDENTIFY_BENEFICIARY_BANK: "Beneficiary bank identified",
   SEND_FREEZE_REQUEST: "Freeze request sent",
+  RETRY_INTEGRATION_JOBS: BANK_ACKNOWLEDGED,
   MARK_FUNDS_MOVED: "Funds traced to another account",
   MARK_FUNDS_WITHDRAWN: "Funds withdrawn",
   ASSIGN_CYBER_CELL: "Cyber Crime Unit assigned",
@@ -97,6 +104,17 @@ function jobStatusLabel(status: unknown) {
     default:
       return String(status || "Unknown").replaceAll("_", " ");
   }
+}
+
+function jobStatusCopy(job: Row) {
+  return freezeJobStatusLabel(job) || jobStatusLabel(job.status);
+}
+
+function jobErrorCopy(job: Row) {
+  if (freezeJobStatusLabel(job)) return "";
+  const error = String(job.last_error || "");
+  if (!error || /HTTP 503|\b503\b/i.test(error)) return "";
+  return ` · ${error}`;
 }
 
 type Institution = { id: string; name: string; short_code: string | null };
@@ -281,8 +299,11 @@ export function OperationsClient({
       `${rupee(amount)} ${traceStatus === "secured" ? "secured" : traceStatus === "unrecovered" ? "marked unrecovered" : "traced to another account"}${destination ? ` at ${destination.name}` : ""}. The citizen can see this now.`,
     );
   };
-  const act = async (action: SimpleAction | "REQUEST_EVIDENCE") => {
-    const keyName = `${selectedCaseId}:${action}`;
+  const act = async (
+    action: SimpleAction | "REQUEST_EVIDENCE",
+    extra?: { demonstrateRetry?: boolean },
+  ) => {
+    const keyName = `${selectedCaseId}:${action}${extra?.demonstrateRetry ? ":demo-retry" : ""}`;
     const idempotencyKey =
       commandKeys.current.get(keyName) || crypto.randomUUID();
     commandKeys.current.set(keyName, idempotencyKey);
@@ -296,7 +317,9 @@ export function OperationsClient({
             description:
               "Upload a bank statement covering the latest 48-hour period.",
           }
-        : { type: action };
+        : action === "SEND_FREEZE_REQUEST" && extra?.demonstrateRetry
+          ? { type: action, demonstrateRetry: true }
+          : { type: action };
     const response = await fetch("/api/operations/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -313,10 +336,13 @@ export function OperationsClient({
     if (!response.ok)
       return fail(data.error || "Action could not be completed.");
     commandKeys.current.delete(keyName);
-    updateDetail(
-      data,
-      `${actionLabels[action]} recorded. The citizen can see this now.`,
-    );
+    const success =
+      action === "SEND_FREEZE_REQUEST" && extra?.demonstrateRetry
+        ? `Freeze request sent. ${BANK_RETRY_QUEUED}.`
+        : action === "RETRY_INTEGRATION_JOBS"
+          ? `${BANK_ACKNOWLEDGED}. The citizen can see this now.`
+          : `${actionLabels[action]} recorded. The citizen can see this now.`;
+    updateDetail(data, success);
   };
   const reset = async () => {
     setBusy("reset");
@@ -342,6 +368,23 @@ export function OperationsClient({
     detail.events.some((event) => event.event_type === eventType);
   const hasTraceableMovement = detail.movements.some((movement) =>
     ["tracing", "moved"].includes(String(movement.movement_status)),
+  );
+  const freezeCanBeSent =
+    hasEvent("BENEFICIARY_BANK_IDENTIFIED") &&
+    !hasEvent("FREEZE_REQUEST_CREATED") &&
+    hasTraceableMovement;
+  const freezeRetryJob = (detail.integrationJobs || []).find((job) => {
+    const status = String(job.status || "");
+    return (
+      /freeze/.test(String(job.action || "")) &&
+      (status === "retrying" || status === "pending") &&
+      Boolean(job.last_error)
+    );
+  });
+  const freezeAcknowledged = (detail.integrationJobs || []).some(
+    (job) =>
+      /freeze/.test(String(job.action || "")) &&
+      ["succeeded", "completed"].includes(String(job.status || "")),
   );
   const actionButtons: [string, SimpleAction | "REQUEST_EVIDENCE", boolean][] =
     [
@@ -799,6 +842,39 @@ export function OperationsClient({
               </div>
             </div>
           )}
+          {freezeRetryJob ? (
+            <div className="card">
+              <div className="label">Bank response</div>
+              <h2 style={{ margin: "6px 0" }}>{BANK_RETRY_QUEUED}</h2>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                The freeze request stays on this case. The bank sandbox returned
+                a temporary error, so the same request will be retried — the
+                citizen does not start over.
+              </p>
+              {localDemo ? (
+                <button
+                  className="btn"
+                  style={{ width: "100%" }}
+                  onClick={() => act("RETRY_INTEGRATION_JOBS")}
+                  disabled={Boolean(busy)}
+                >
+                  {busy === "RETRY_INTEGRATION_JOBS"
+                    ? "Retrying…"
+                    : "Retry bank request"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {freezeAcknowledged ? (
+            <div className="card">
+              <div className="label">Bank response</div>
+              <h2 style={{ margin: "6px 0" }}>{BANK_ACKNOWLEDGED}</h2>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                The original freeze request succeeded after retry. Case state
+                was kept.
+              </p>
+            </div>
+          ) : null}
           <div className="card">
             <div className="label">Case actions</div>
             <div className="action-stack">
@@ -812,6 +888,19 @@ export function OperationsClient({
                   {busy === action ? "Recording…" : label}
                 </button>
               ))}
+              {localDemo && freezeCanBeSent ? (
+                <button
+                  className="btn secondary"
+                  onClick={() =>
+                    act("SEND_FREEZE_REQUEST", { demonstrateRetry: true })
+                  }
+                  disabled={Boolean(busy)}
+                >
+                  {busy === "SEND_FREEZE_REQUEST"
+                    ? "Recording…"
+                    : "Send freeze (bank retry demo)"}
+                </button>
+              ) : null}
             </div>
           </div>
           <div className="card">
@@ -831,11 +920,11 @@ export function OperationsClient({
                     <time>{when(job.created_at)}</time>
                     <strong>{jobTitle(job)}</strong>
                     <p>
-                      {jobStatusLabel(job.status)}
-                      {job.external_reference
+                      {jobStatusCopy(job)}
+                      {job.external_reference && !freezeJobStatusLabel(job)
                         ? ` · ${String(job.external_reference)}`
                         : ""}
-                      {job.last_error ? ` · ${String(job.last_error)}` : ""}
+                      {jobErrorCopy(job)}
                     </p>
                     <p className="secondary-meta">
                       {String(job.provider)} ·{" "}

@@ -4,12 +4,16 @@ import { requireRole } from "@/lib/auth";
 import { executeCaseAction } from "@/lib/repository";
 import { ensureDemoData } from "@/lib/demo";
 import { logFailure } from "@/lib/observability";
-import { isLocalBackend } from "@/lib/supabase/config";
+import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 import { assertRateLimit } from "@/lib/rate-limit";
 
 const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("IDENTIFY_BENEFICIARY_BANK") }),
-  z.object({ type: z.literal("SEND_FREEZE_REQUEST") }),
+  z.object({
+    type: z.literal("SEND_FREEZE_REQUEST"),
+    demonstrateRetry: z.boolean().optional(),
+  }),
+  z.object({ type: z.literal("RETRY_INTEGRATION_JOBS") }),
   z.object({ type: z.literal("MARK_FUNDS_MOVED") }),
   z.object({ type: z.literal("MARK_FUNDS_WITHDRAWN") }),
   z.object({ type: z.literal("ASSIGN_CYBER_CELL") }),
@@ -36,7 +40,18 @@ export async function POST(request: Request) {
       .string()
       .regex(/^NCRP-\d{2}-\d{6}$/)
       .parse(body.caseId);
-    const action = actionSchema.parse(body.action);
+    const parsed = actionSchema.parse(body.action);
+    const action =
+      parsed.type === "SEND_FREEZE_REQUEST" &&
+      parsed.demonstrateRetry &&
+      !isDemoAccessEnabled()
+        ? { type: "SEND_FREEZE_REQUEST" as const }
+        : parsed;
+    if (action.type === "RETRY_INTEGRATION_JOBS" && !isDemoAccessEnabled())
+      return NextResponse.json(
+        { error: "Retry demonstration is only available in demo mode." },
+        { status: 400 },
+      );
     return NextResponse.json(
       await executeCaseAction({
         publicCaseId: caseId,

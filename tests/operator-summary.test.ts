@@ -17,6 +17,7 @@ function detail(
     sla?: string;
     deadlineAt?: string;
     evidenceOpen?: boolean;
+    jobs?: { action: string; status: string; last_error?: string }[];
   } = {},
 ): CaseDetail {
   return {
@@ -48,6 +49,7 @@ function detail(
       status: overrides.sla || "not_applicable",
       deadlineAt: overrides.deadlineAt,
     },
+    integrationJobs: overrides.jobs || [],
   };
 }
 
@@ -132,4 +134,24 @@ test("operator summary uses live SLA state and a neutral owner fallback", () => 
     buildOperatorCaseSummary(detail({ sla: "met" })).sla,
     "Response received",
   );
+});
+
+test("operator summary surfaces a queued bank retry without exposing HTTP 503", () => {
+  const summary = buildOperatorCaseSummary(
+    detail({
+      events: ["BENEFICIARY_BANK_IDENTIFIED", "FREEZE_REQUEST_CREATED"],
+      sla: "waiting",
+      deadlineAt: "2026-09-08T14:27:00.000Z",
+      jobs: [
+        {
+          action: "request_freeze",
+          status: "retrying",
+          last_error: "Bank temporarily unavailable — retry queued",
+        },
+      ],
+    }),
+  );
+  assert.equal(summary.nextAction, "Retry the freeze request");
+  assert.equal(summary.blocker, "Bank temporarily unavailable — retry queued");
+  assert.doesNotMatch(summary.blocker, /503/);
 });

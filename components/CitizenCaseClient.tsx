@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CaseDetail } from "@/lib/types";
 import { buildFundFlow, type FundMovementRow } from "@/lib/domain/fund-graph";
 import { buildCitizenCaseSummary } from "@/lib/domain/citizen-summary";
+import { BANK_ACKNOWLEDGED } from "@/lib/jobs/status";
 import { MoneyTrail } from "@/components/MoneyTrail";
 import { DigiLockerComingSoonButton } from "@/components/DigiLockerComingSoon";
 import { DigiLockerConnect } from "@/components/DigiLockerConnect";
@@ -76,6 +77,7 @@ const eventTitle: Record<string, string> = {
   SENDER_BANK_NOTIFIED: "Your bank notified",
   BENEFICIARY_BANK_IDENTIFIED: "Beneficiary bank identified",
   FREEZE_REQUEST_CREATED: "Freeze request sent",
+  INTEGRATION_JOB_COMPLETED: "Institution update received",
   FUNDS_PARTIALLY_SECURED: "Funds secured",
   FUNDS_SECURED: "Additional funds secured",
   FUNDS_MOVED: "Money traced onward",
@@ -105,6 +107,8 @@ const eventMeaning: Record<string, string> = {
     "The account that received your money was traced.",
   FREEZE_REQUEST_CREATED:
     "A hold was requested so this money cannot be moved again.",
+  INTEGRATION_JOB_COMPLETED:
+    "An institution responded. Your case is still open.",
   FUNDS_PARTIALLY_SECURED: "This money is now held and cannot be moved.",
   FUNDS_SECURED: "This money is now held and cannot be moved.",
   FUNDS_MOVED:
@@ -130,6 +134,28 @@ const firLabel: Record<string, string> = {
   registered: "Registered",
   declined: "Not registered",
 };
+
+function hideTechnicalError(value: unknown, fallback: string) {
+  const text = String(value || "");
+  if (!text || /HTTP 503|\b503\b/i.test(text)) return fallback;
+  return text;
+}
+
+function eventTitleFor(type: string, payload: Row | undefined) {
+  const label = hideTechnicalError(payload?.label, "");
+  if (type === "INTEGRATION_JOB_COMPLETED" && label === BANK_ACKNOWLEDGED)
+    return BANK_ACKNOWLEDGED;
+  return label || eventTitle[type] || "Case update";
+}
+
+function eventMeaningFor(type: string, payload: Row | undefined) {
+  if (
+    type === "INTEGRATION_JOB_COMPLETED" &&
+    String(payload?.label || "") === BANK_ACKNOWLEDGED
+  )
+    return "The bank confirmed it received the freeze request. You do not need to start over.";
+  return eventMeaning[type] || "This update was added to your case.";
+}
 
 const institutionName = (value: unknown) =>
   String(value || "the assigned team")
@@ -237,9 +263,10 @@ export function CitizenCaseClient({
     else {
       const latest = next.events[0];
       const type = String(latest?.event_type || "");
+      const payload = latest?.payload_json as Row | undefined;
       setToast({
-        title: eventTitle[type] || "Your case was updated",
-        body: eventMeaning[type] || "A new update was added to your case.",
+        title: eventTitleFor(type, payload),
+        body: eventMeaningFor(type, payload),
       });
     }
   };
@@ -745,9 +772,7 @@ export function CitizenCaseClient({
               {visibleEvents.map((event, index) => {
                 const type = String(event.event_type);
                 const payload = event.payload_json as Row;
-                const title = String(
-                  payload?.label || eventTitle[type] || "Case update",
-                );
+                const title = eventTitleFor(type, payload);
                 return (
                   <li
                     className={`journey-step${index === 0 ? " latest" : ""}`}
@@ -760,10 +785,7 @@ export function CitizenCaseClient({
                     </div>
                     <div className="journey-body">
                       <strong>{title}</strong>
-                      <p>
-                        {eventMeaning[type] ||
-                          "This update was added to your case."}
-                      </p>
+                      <p>{eventMeaningFor(type, payload)}</p>
                       {Boolean(event.institution_name) && (
                         <span className="journey-tag">
                           {institutionName(event.institution_name)}
@@ -793,8 +815,18 @@ export function CitizenCaseClient({
               </div>
               {detail.notifications.slice(0, 3).map((notification) => (
                 <div className="notification" key={String(notification.id)}>
-                  <strong>{String(notification.title)}</strong>
-                  <p>{String(notification.body)}</p>
+                  <strong>
+                    {hideTechnicalError(
+                      notification.title,
+                      "Your case was updated",
+                    )}
+                  </strong>
+                  <p>
+                    {hideTechnicalError(
+                      notification.body,
+                      "A new update was added to your case.",
+                    )}
+                  </p>
                   <time>{dayAndClock(notification.created_at)}</time>
                 </div>
               ))}

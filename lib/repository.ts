@@ -10,13 +10,14 @@ import {
   secureAdditionalFunds,
 } from "@/lib/case-engine";
 import { db } from "@/lib/db";
-import { isLocalBackend } from "@/lib/supabase/config";
+import { isDemoAccessEnabled, isLocalBackend } from "@/lib/supabase/config";
 import {
   createSupabaseCase,
   executeSupabaseCommand,
   getSupabaseCaseDetail,
   listSupabaseCases,
   markSupabaseNotificationsRead,
+  retrySupabaseFreezeJobs,
 } from "@/lib/supabase/repository";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -94,6 +95,13 @@ export async function executeCaseAction(input: {
   expectedVersion: number;
   idempotencyKey?: string;
 }) {
+  if (input.action.type === "RETRY_INTEGRATION_JOBS") {
+    if (!isDemoAccessEnabled())
+      throw new Error("Retry demonstration is only available in demo mode.");
+    return isLocalBackend()
+      ? executeOperatorAction(input.publicCaseId, input.actorId, input.action)
+      : retrySupabaseFreezeJobs(input.publicCaseId);
+  }
   if (isLocalBackend())
     return executeOperatorAction(
       input.publicCaseId,

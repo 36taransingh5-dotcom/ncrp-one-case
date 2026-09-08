@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getProviderApiKey, getSandboxSecret } from "@/lib/adapters/config";
 import type { IntegrationProvider } from "@/lib/adapters/config";
 import { tokenMatches } from "@/lib/adapters/signature";
+import { sandboxFreezeRetryShouldFail } from "@/lib/jobs/status";
 import { logEvent } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +54,15 @@ async function sandboxResponse(
         status: 422,
       },
     );
+  if (
+    sandboxFreezeRetryShouldFail({
+      path: path.join("/"),
+      method: request.method,
+      demo: request.headers.get("x-ncrp-sandbox-demo"),
+      attempt: request.headers.get("x-ncrp-job-attempt"),
+    })
+  )
+    return NextResponse.json({ error: "Sandbox unavailable" }, { status: 503 });
 
   const method = request.method;
   const idempotencyKey =

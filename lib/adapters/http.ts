@@ -78,6 +78,8 @@ export function createHttpBankAdapter(override?: HttpBinding): BankAdapter {
         path: "/v1/freeze-requests",
         idempotencyKey: context?.idempotencyKey || `bank:freeze:${caseId}`,
         timeoutMs: contextTimeout(context?.timeoutMs),
+        attemptCount: context?.attemptCount,
+        demoFreezeRetry: context?.demoFreezeRetry,
         body: { caseId, accountRef, amount, ...callbackFields() },
       });
     },
