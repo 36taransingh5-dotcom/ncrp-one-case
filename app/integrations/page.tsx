@@ -1,6 +1,7 @@
 import { PrototypeNotice } from "@/components/PrototypeNotice";
 import { currentSession } from "@/lib/auth";
 import { getIntegrationStatusRows } from "@/lib/adapters/status";
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ const tone: Record<string, string> = {
 };
 
 export default async function IntegrationsPage() {
+  await connection();
   const session = await currentSession();
   if (!session || session.role !== "operator") redirect("/auth");
   const rows = getIntegrationStatusRows();

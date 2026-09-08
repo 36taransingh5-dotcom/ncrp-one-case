@@ -295,7 +295,7 @@ test("Resend binds from API key alone and defaults the test sender", () => {
     "NCRP <cases@ncrp.example>",
   );
   assert.equal(resolveNotificationProvider("", true, "http"), "resend");
-  assert.equal(resolveNotificationProvider("http", true, "http"), "http");
+  assert.equal(resolveNotificationProvider("http", true, "http"), "resend");
   assert.equal(
     resolveNotificationProvider("resend", false, "http"),
     "simulated",

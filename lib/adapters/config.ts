@@ -148,29 +148,31 @@ export function resolveNotificationProvider(
   hasResendKey: boolean,
   httpBinding: Exclude<ProviderBinding, "resend">,
 ): NotificationProvider {
-  const explicit = explicitMode.toLowerCase();
+  const explicit = explicitMode.trim().toLowerCase();
   if (explicit === "simulated") return "simulated";
-  if (explicit === "resend") return hasResendKey ? "resend" : "simulated";
-  if (explicit === "http") return httpBinding;
   if (hasResendKey) return "resend";
+  if (explicit === "resend") return "simulated";
+  if (explicit === "http") return httpBinding;
   return httpBinding;
 }
 
 export function resendConfigured() {
-  return resendApiKeyPresent(env("RESEND_API_KEY"));
+  // Static process.env.NAME access so Next.js includes the Vercel Marketplace
+  // key in this function's runtime env (dynamic process.env[name] can miss it).
+  return resendApiKeyPresent(process.env.RESEND_API_KEY || "");
 }
 
 export function getResendFromAddress() {
   return resolveResendFromAddress(
-    env("RESEND_FROM"),
-    env("RESEND_FROM_EMAIL"),
-    env("EMAIL_FROM"),
+    process.env.RESEND_FROM,
+    process.env.RESEND_FROM_EMAIL,
+    process.env.EMAIL_FROM,
   );
 }
 
 export function getNotificationProvider(): NotificationProvider {
   return resolveNotificationProvider(
-    env("NCRP_NOTIFICATION_MODE"),
+    process.env.NCRP_NOTIFICATION_MODE || "",
     resendConfigured(),
     getProviderBinding("notification"),
   );

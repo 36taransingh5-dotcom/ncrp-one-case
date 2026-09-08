@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { isLocalBackend } from "@/lib/supabase/config";
 import { getIntegrationSnapshot } from "@/lib/adapters";
@@ -6,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  await connection();
   const integrations = getIntegrationSnapshot();
   if (isLocalBackend())
     return NextResponse.json({
