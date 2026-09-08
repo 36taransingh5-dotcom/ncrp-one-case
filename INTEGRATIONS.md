@@ -30,7 +30,7 @@ Set `RESEND_API_KEY` (Vercel Resend Marketplace injects this). To email the citi
 
 # DigiLocker and API Setu
 
-DigiLocker uses the official requester OAuth on `digilocker.meripehchaan.gov.in`. Register `https://<app>/api/integrations/digilocker/callback` in the partner portal. Set `DIGILOCKER_CLIENT_ID` and `DIGILOCKER_CLIENT_SECRET`, or API Setu client credentials which are used as a fallback. Mode is `sandbox` when credentials exist unless `DIGILOCKER_MODE=live` or `disabled`. Citizens authorize DigiLocker, then choose one issued document to attach as case evidence. This app does not invent locker contents, fetch e-Aadhaar XML, or store DigiLocker profile fields.
+DigiLocker uses the official requester OAuth on `digilocker.meripehchaan.gov.in`. Register `https://<app>/api/integrations/digilocker/callback` in the partner portal. Set `DIGILOCKER_CLIENT_ID` and `DIGILOCKER_CLIENT_SECRET`, or API Setu client credentials which are used as a fallback. Mode is `sandbox` when credentials exist unless `DIGILOCKER_MODE=live` or `disabled`. Citizens authorize DigiLocker, then choose one issued document to attach as case evidence. This app does not invent locker contents, fetch e-Aadhaar XML, or store DigiLocker profile fields. Sign-in and case document screens keep a DigiLocker control; until requester credentials exist, that control explains DigiLocker will be available soon and does not start OAuth.
 
 API Setu status is SANDBOX/LIVE only when `API_SETU_CLIENT_ID` and `API_SETU_CLIENT_SECRET` are set. There is no fake PAN/Aadhaar verification API. Bank, police and reporting remain HTTP sandbox, not live institutional systems.
 
