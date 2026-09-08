@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { jobsForCaseEvent } from "../lib/jobs/event-jobs";
 
 const rls = fs.readFileSync("supabase/migrations/002_rls.sql", "utf8");
 const evidence = fs.readFileSync(
@@ -64,4 +65,21 @@ test("inbound webhooks are operator-readable and jobs enqueue from case events",
   );
   assert.match(httpIntegrations, /create_external_complaint/);
   assert.match(httpIntegrations, /identify_beneficiary/);
+});
+
+test("application job specs use the same idempotency keys as the SQL trigger", () => {
+  const created = jobsForCaseEvent("CASE_CREATED");
+  const identified = jobsForCaseEvent("BENEFICIARY_BANK_IDENTIFIED");
+  assert.equal(
+    created[0]?.idempotencyKey("case-1"),
+    "reporting:complaint:case-1",
+  );
+  assert.equal(identified[0]?.idempotencyKey("case-1"), "bank:identify:case-1");
+  assert.equal(identified[1]?.idempotencyKey("case-1"), "bank:notify:case-1");
+  assert.match(
+    httpIntegrations,
+    /'reporting:complaint:' \|\| new\.case_id::text/,
+  );
+  assert.match(httpIntegrations, /'bank:identify:' \|\| new\.case_id::text/);
+  assert.match(httpIntegrations, /'bank:notify:' \|\| new\.case_id::text/);
 });

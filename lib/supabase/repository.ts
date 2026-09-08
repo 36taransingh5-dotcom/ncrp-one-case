@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import type { CaseDetail, CaseListRow } from "@/lib/types";
 import { calculateSlaTiming } from "@/lib/domain/sla";
 import { createSupabaseServerClient } from "./server";
+import { enqueueJobsForCaseEvent } from "@/lib/jobs/enqueue";
 import { processIntegrationJobs } from "@/lib/jobs/process";
 import { logFailure } from "@/lib/observability";
 
@@ -287,12 +288,20 @@ export async function createSupabaseCase(input: {
     p_institution_details: input.institutionDetails || null,
   });
   if (error) fail(error, "Case could not be created.");
+  const publicId = String(data);
   try {
+    const { data: caseRow } = await supabase
+      .from("cases")
+      .select("id")
+      .eq("public_case_id", publicId)
+      .maybeSingle();
+    if (caseRow?.id)
+      await enqueueJobsForCaseEvent(String(caseRow.id), "CASE_CREATED");
     await processIntegrationJobs(`inline:create:${crypto.randomUUID()}`, 10);
   } catch (jobError) {
     logFailure("intake.inline_job_processing_failed", jobError);
   }
-  return { publicId: String(data) };
+  return { publicId };
 }
 
 export async function executeSupabaseCommand(input: {
@@ -317,6 +326,18 @@ export async function executeSupabaseCommand(input: {
   // queued and the daily cron (or a manual worker run) still picks it up.
   if (JOB_QUEUEING_ACTIONS.has(input.action)) {
     try {
+      if (input.action === "IDENTIFY_BENEFICIARY_BANK") {
+        const { data: caseRow } = await supabase
+          .from("cases")
+          .select("id")
+          .eq("public_case_id", input.publicCaseId)
+          .maybeSingle();
+        if (caseRow?.id)
+          await enqueueJobsForCaseEvent(
+            String(caseRow.id),
+            "BENEFICIARY_BANK_IDENTIFIED",
+          );
+      }
       await processIntegrationJobs(`inline:${crypto.randomUUID()}`, 5);
     } catch (jobError) {
       logFailure("operator.inline_job_processing_failed", jobError, {

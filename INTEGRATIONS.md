@@ -15,6 +15,8 @@ No official NCRP/1930/CFCFRMS, police/FIR, bank/UPI, telecom, Aadhaar/DigiLocker
 
 Set `NCRP_INTEGRATION_MODE=http` plus per-provider base URL and API key (or `NCRP_SANDBOX_SECRET` with `NCRP_APP_BASE_URL`) to send real HTTP. Hosted `NCRP_BACKEND=supabase` deployments also enable the HTTP sandbox automatically when `NCRP_WORKER_SECRET` is set, unless `NCRP_INTEGRATION_MODE=simulated`. Missing provider credentials keep that provider on the simulated adapter. Local tests and the SQLite demo stay `simulated`.
 
+Reporting and beneficiary-bank jobs are enqueued from the application after `CASE_CREATED` and `BENEFICIARY_BANK_IDENTIFIED`, using the same idempotency keys as migration `012_http_integrations.sql`. Hosted deploys therefore queue those jobs even before that migration is applied. The SQL trigger remains the durable database path. Inbound webhooks fall back to `case_events` dedupe if `integration_webhook_receipts` does not exist yet.
+
 The in-app sandbox at `/api/integrations/sandbox/{bank,police,reporting,notification}/v1/...` is a labelled synthetic partner. It requires the provider API key or sandbox secret in production. It returns deterministic references from the `Idempotency-Key` header and never talks to a real bank or police system.
 
 Inbound callbacks POST to `/api/integrations/webhook` with `X-NCRP-Signature: sha256=<hex>` over the raw body using `NCRP_WEBHOOK_SECRET`. Duplicate `eventId` values replay as HTTP 200. Callbacks append case events; they do not mutate fund totals or register an FIR by themselves.

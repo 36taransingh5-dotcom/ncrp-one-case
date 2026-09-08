@@ -18,6 +18,7 @@ import {
   verifyWebhookSignature,
 } from "../lib/adapters/signature";
 import { parseSignedWebhook } from "../lib/adapters/webhook-parse";
+import { isMissingRelation, jobsForCaseEvent } from "../lib/jobs/event-jobs";
 
 async function withServer(
   handler: (
@@ -191,6 +192,25 @@ test("missing HTTP credentials keep the simulated binding", () => {
     resolveProviderBinding("http", "https://bank.example", "k"),
     "http",
   );
+});
+
+test("missing webhook receipt tables are treated as an unapplied migration", () => {
+  assert.equal(
+    isMissingRelation(
+      { code: "PGRST205", message: "Could not find the table" },
+      "integration_webhook_receipts",
+    ),
+    true,
+  );
+  assert.equal(
+    isMissingRelation({ code: "42501", message: "permission denied" }, "x"),
+    false,
+  );
+  assert.equal(
+    jobsForCaseEvent("CASE_CREATED")[0]?.action,
+    "create_external_complaint",
+  );
+  assert.equal(jobsForCaseEvent("FREEZE_REQUEST_CREATED").length, 0);
 });
 
 test("webhook signatures are required and compared in constant time", () => {
